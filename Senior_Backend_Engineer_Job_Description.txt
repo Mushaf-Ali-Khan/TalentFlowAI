@@ -1,0 +1,38 @@
+ Senior Backend Engineer — AI Recruitment Platform
+
+ Company Overview
+TalentFlow AI is building a next-generation AI-powered recruitment intelligence platform focused on scalable resume parsing, semantic matching, explainable scoring, and recruiter workflow automation.
+
+ Role Summary
+We are seeking a Senior Backend Engineer to design and scale distributed backend systems powering AI-driven hiring workflows. The ideal candidate has deep experience with Python backend engineering, distributed systems, PostgreSQL optimization, containerized infrastructure, and AI orchestration frameworks.
+
+ Responsibilities
+- Build and maintain scalable APIs using Python and FastAPI
+- Design PostgreSQL schemas, indexing strategies, and vector search workflows
+- Develop distributed background processing systems using Redis and Celery
+- Deploy and maintain containerized services using Docker and Kubernetes
+- Integrate AI APIs including Anthropic, OpenAI, and LangGraph orchestration
+- Build observability pipelines with logging, tracing, and monitoring
+- Collaborate with ML engineers on semantic search and embedding workflows
+- Optimize backend latency and reliability under production load
+- Implement security best practices and RBAC systems
+- Participate in architecture reviews and mentoring
+
+ Required Skills
+- 5+ years of backend engineering experience
+- Strong Python and FastAPI expertise
+- PostgreSQL performance optimization
+- Redis and asynchronous job processing
+- Docker and Kubernetes
+- AWS services (ECS, RDS, S3, Lambda, CloudWatch)
+- REST API design
+- CI/CD and GitHub Actions
+- Experience with AI APIs or LLM integrations
+- Excellent debugging and systems design skills
+
+ Preferred Skills
+- LangGraph or agent orchestration experience
+- pgvector or vector database experience
+- Experience building recruitment or SaaS products
+- Infrastructure-as-code using Terraform
+- Knowledge of semantic search and embeddings
