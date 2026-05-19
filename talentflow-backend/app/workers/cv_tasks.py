@@ -7,15 +7,12 @@ from celery.exceptions import SoftTimeLimitExceeded
 from app.workers.celery_app import app
 from app.agents.graph import create_pipeline_graph
 from app.agents.state import PipelineState
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
+from app.core.database import async_session
 from app.config import settings
 
 logger = logging.getLogger(__name__)
-
-# Superuser connection for worker layer
-engine = create_async_engine(settings.DATABASE_URL, echo=False)
-async_session = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
 
 # Note: Checkpointing is required in the spec using AsyncPostgresSaver
 # For simplification in this prototype we can mock checkpointer or use it if fully implemented
@@ -51,14 +48,20 @@ async def _async_process_single_cv(candidate_id: str, batch_id: str, r2_key: str
         "request_id": request_id,
     }
     
-    # We would use a PostgresSaver here
-    # async with AsyncPostgresSaver.from_conn_string(settings.CELERY_DATABASE_URL) as checkpointer:
-    #     graph = create_pipeline_graph(checkpointer)
-    #     config = {"configurable": {"thread_id": candidate_id}}
-    #     result = await graph.ainvoke(initial_state, config=config)
-    
-    graph = create_pipeline_graph() # Without checkpointer for now if unconfigured
-    result = await graph.ainvoke(initial_state)
+    if settings.ENABLE_LANGGRAPH_CHECKPOINTS:
+        try:
+            from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+            async with AsyncPostgresSaver.from_conn_string(settings.CELERY_DATABASE_URL) as checkpointer:
+                graph = create_pipeline_graph(checkpointer)
+                config = {"configurable": {"thread_id": candidate_id}}
+                result = await graph.ainvoke(initial_state, config=config)
+        except Exception as e:
+            logger.warning(f"Checkpointing unavailable, running without it: {e}")
+            graph = create_pipeline_graph()
+            result = await graph.ainvoke(initial_state)
+    else:
+        graph = create_pipeline_graph()
+        result = await graph.ainvoke(initial_state)
     logger.info(f"Finished pipeline for candidate {candidate_id}")
 
 @app.task(bind=True)

@@ -1,4 +1,5 @@
 from sqlalchemy.ext.asyncio import AsyncSession
+from datetime import datetime, timezone
 from app.repositories.candidate_repo import candidate_repo
 from app.models.candidate import Candidate
 
@@ -14,7 +15,8 @@ class CandidateService:
         update_data = {
             "recruiter_status": status,
             "recruiter_note": note,
-            "status_updated_by": user_id
+            "status_updated_by": user_id,
+            "status_updated_at": datetime.now(timezone.utc)
         }
         return await candidate_repo.update(db, candidate, update_data)
 

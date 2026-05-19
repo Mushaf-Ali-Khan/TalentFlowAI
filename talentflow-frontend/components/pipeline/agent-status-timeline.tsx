@@ -26,7 +26,7 @@ export function AgentStatusTimeline({ steps }: { steps: Step[] }) {
             <div className="relative pb-8">
               {stepIdx !== steps.length - 1 ? (
                 <span
-                  className="absolute left-4 top-4 -ml-px h-full w-0.5 bg-gray-200"
+                  className="absolute left-4 top-4 -ml-px h-full w-0.5 bg-[var(--tf-border)]"
                   aria-hidden="true"
                 />
               ) : null}
@@ -35,8 +35,8 @@ export function AgentStatusTimeline({ steps }: { steps: Step[] }) {
                   <span
                     className={cn(
                       'h-8 w-8 rounded-full flex items-center justify-center ring-8 ring-white',
-                      step.status === 'completed' ? 'bg-green-500' : 
-                      step.status === 'active' ? 'bg-blue-600' :
+                      step.status === 'completed' ? 'bg-emerald-600' : 
+                      step.status === 'active' ? 'bg-[var(--tf-accent)]' :
                       step.status === 'error' ? 'bg-red-500' : 'bg-gray-200'
                     )}
                   >
@@ -53,8 +53,8 @@ export function AgentStatusTimeline({ steps }: { steps: Step[] }) {
                 </div>
                 <div className="flex min-w-0 flex-1 justify-between space-x-4 pt-1.5">
                   <div>
-                    <p className="text-sm font-medium text-gray-900">{step.title}</p>
-                    <p className="text-sm text-gray-500">{step.description}</p>
+                    <p className="text-sm font-medium text-[var(--tf-ink)]">{step.title}</p>
+                    <p className="text-sm text-[var(--tf-muted)]">{step.description}</p>
                   </div>
                 </div>
               </div>

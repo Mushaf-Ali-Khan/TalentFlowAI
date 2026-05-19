@@ -1,14 +1,10 @@
 import logging
 from app.agents.state import PipelineState
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
-from app.config import settings
+from app.core.database import async_session
 
 logger = logging.getLogger(__name__)
-
-# Superuser connection for worker layer
-engine = create_async_engine(settings.DATABASE_URL, echo=False)
-async_session = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
 
 class PersistNode:
     """
@@ -33,6 +29,7 @@ class PersistNode:
         elif state.get("needs_manual_review"):
             processing_status = "needs_review"
             
+        notify_email = None
         async with async_session() as session:
             async with session.begin():
                 try:
@@ -40,7 +37,7 @@ class PersistNode:
                     # We use raw SQL for performance and exact control
                     update_candidate_sql = text("""
                         UPDATE candidates
-                        SET profile = :profile,
+                        SET profile = :profile::jsonb,
                             extraction_confidence = :confidence,
                             needs_manual_review = :needs_review,
                             embedding = :embedding,
@@ -48,7 +45,7 @@ class PersistNode:
                             semantic_score = :semantic_score,
                             llm_score = :llm_score,
                             total_score = :total_score,
-                            score_breakdown = :score_breakdown,
+                            score_breakdown = :score_breakdown::jsonb,
                             auto_rejected = :auto_rejected,
                             processing_status = :status,
                             updated_at = NOW()
@@ -80,7 +77,7 @@ class PersistNode:
                     if bias_result:
                         insert_bias_sql = text("""
                             INSERT INTO bias_audit_log (id, candidate_id, org_id, detected_signals, raw_text_excerpt, created_at, updated_at)
-                            VALUES (gen_random_uuid(), :candidate_id, :org_id, :signals, :excerpt, NOW(), NOW())
+                            VALUES (gen_random_uuid(), :candidate_id, :org_id, :signals::jsonb, :excerpt, NOW(), NOW())
                         """)
                         await session.execute(insert_bias_sql, {
                             "candidate_id": str(candidate_id),
@@ -102,16 +99,33 @@ class PersistNode:
                     # Check if batch completed
                     if row and row.processed_cvs >= row.total_cvs:
                         # Mark batch as completed
-                        await session.execute(text("""
-                            UPDATE batches 
-                            SET status = 'completed', completed_at = NOW() 
-                            WHERE id = :batch_id
+                        result = await session.execute(text("""
+                            UPDATE batches
+                            SET status = 'completed', completed_at = NOW()
+                            WHERE id = :batch_id AND status != 'completed'
+                            RETURNING submitted_by
                         """), {"batch_id": str(batch_id)})
-                        logger.info(f"Batch {batch_id} completed!")
-                        # Trigger batch completion task would happen via Celery
+                        completed_row = result.fetchone()
+                        if completed_row:
+                            logger.info(f"Batch {batch_id} completed!")
+                            submitter_id = completed_row.submitted_by
+                            email_row = await session.execute(
+                                text("SELECT email FROM users WHERE id = :id"),
+                                {"id": str(submitter_id)}
+                            )
+                            email_result = email_row.fetchone()
+                            if email_result and email_result.email:
+                                notify_email = email_result.email
                         
                 except Exception as e:
                     logger.error(f"PersistNode transaction failed: {e}")
                     raise # Let retry mechanism handle it
+        
+        if notify_email:
+            try:
+                from app.workers.notification_tasks import send_batch_complete_email
+                send_batch_complete_email.delay(str(batch_id), notify_email)
+            except Exception as e:
+                logger.error(f"Failed to enqueue batch completion email: {e}")
                     
         return {"processing_status": processing_status}

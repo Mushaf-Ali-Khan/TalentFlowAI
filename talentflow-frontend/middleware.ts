@@ -1,10 +1,22 @@
 import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
+import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
-export function middleware(_request: NextRequest) {
-  return NextResponse.next();
-}
+const isPublicRoute = createRouteMatcher([
+  "/sign-in(.*)",
+  "/sign-up(.*)",
+  "/api/health(.*)",
+]);
+
+export default clerkMiddleware((auth, req) => {
+  if (!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY) {
+    return NextResponse.next();
+  }
+
+  if (!isPublicRoute(req)) {
+    auth().protect();
+  }
+});
 
 export const config = {
-  matcher: [],
+  matcher: ["/((?!_next|.*\\..*).*)", "/api/(.*)"],
 };

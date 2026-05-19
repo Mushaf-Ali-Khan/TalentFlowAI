@@ -6,8 +6,8 @@ services:
     container_name: talentflow_postgres
 
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: pass
       POSTGRES_DB: talentflow
 
     ports:

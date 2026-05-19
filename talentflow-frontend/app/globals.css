@@ -1,26 +1,34 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --tf-bg: #f6f4ef;
+  --tf-ink: #0f172a;
+  --tf-muted: #556070;
+  --tf-surface: #ffffff;
+  --tf-surface-2: #f1f5f9;
+  --tf-border: #e2e8f0;
+  --tf-accent: #0f766e;
+  --tf-accent-2: #d97706;
+  --tf-accent-3: #0284c7;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-inter), sans-serif;
-  --font-mono: var(--font-jetbrains-mono), monospace;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-background: var(--tf-bg);
+  --color-foreground: var(--tf-ink);
+  --font-sans: var(--font-space-grotesk), sans-serif;
+  --font-mono: var(--font-ibm-plex-mono), monospace;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background:
+    radial-gradient(70rem 60rem at 5% -10%, rgba(2, 132, 199, 0.12), transparent 60%),
+    radial-gradient(60rem 50rem at 95% 0%, rgba(13, 148, 136, 0.12), transparent 55%),
+    linear-gradient(180deg, #f6f4ef 0%, #f9fafb 100%);
+  color: var(--tf-ink);
+  font-family: var(--font-space-grotesk), sans-serif;
+}
+
+::selection {
+  background: rgba(13, 148, 136, 0.2);
+  color: #0f172a;
 }

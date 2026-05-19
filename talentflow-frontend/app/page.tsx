@@ -1,21 +1,35 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getJobs, createJob } from '@/lib/api/jobs'
+import { getAnalyticsOverview } from '@/lib/api/analytics'
 import { Briefcase, Users, CheckCircle, BarChart3, Plus, ArrowRight, UploadCloud, Sparkles, Loader2 } from 'lucide-react'
+import { useToast } from '@/lib/providers/toast-provider'
 
 export default function DashboardPage() {
   const queryClient = useQueryClient()
   const [newTitle, setNewTitle] = useState('')
   const [newDescription, setNewDescription] = useState('')
   const [isSuccessMessageVisible, setIsSuccessMessageVisible] = useState(false)
+  const { pushToast } = useToast()
 
   // 1. Fetch active jobs from backend
   const { data: jobs, isLoading, error } = useQuery<any>({
     queryKey: ['jobs'],
     queryFn: getJobs,
   })
+
+  const { data: analytics } = useQuery({
+    queryKey: ['analytics', 'overview'],
+    queryFn: getAnalyticsOverview,
+  })
+
+  useEffect(() => {
+    if (error) {
+      pushToast('Failed to load jobs. Please refresh.', 'error')
+    }
+  }, [error, pushToast])
 
   // 2. Create Job Mutation
   const createJobMutation = useMutation({
@@ -53,103 +67,130 @@ export default function DashboardPage() {
     )
   }
 
-  return (
-    <div className="min-h-screen bg-[#070913] text-[#f1f3f9] font-sans overflow-x-hidden selection:bg-indigo-500 selection:text-white relative">
-      
-      {/* Sleek Neon Background Gradients */}
-      <div className="absolute top-[-10%] left-[-10%] w-[600px] h-[600px] rounded-full bg-indigo-900/20 blur-[120px] pointer-events-none"></div>
-      <div className="absolute bottom-[-10%] right-[-10%] w-[600px] h-[600px] rounded-full bg-purple-900/10 blur-[150px] pointer-events-none"></div>
+  const activeRoles = jobs ? jobs.length : (analytics?.active_jobs ?? 0)
+  const totalCandidates = analytics?.total_candidates ?? 0
+  const passRate = analytics ? `${Math.round(analytics.pass_rate * 100)}%` : '—'
+  const avgSemantic = analytics ? `${(analytics.avg_semantic_score * 100).toFixed(1)}%` : '—'
 
-      <header className="border-b border-gray-800/60 bg-gray-950/40 backdrop-blur-md sticky top-0 z-50">
+  return (
+    <div className="min-h-screen relative overflow-hidden">
+      <div className="absolute -top-32 -left-40 h-[520px] w-[520px] rounded-full bg-[var(--tf-accent-3)]/10 blur-[120px]" />
+      <div className="absolute -top-24 right-[-10%] h-[420px] w-[420px] rounded-full bg-[var(--tf-accent)]/10 blur-[120px]" />
+
+      <header className="border-b border-[var(--tf-border)] bg-white/70 backdrop-blur sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
-              <Sparkles className="w-5 h-5 text-white" />
+            <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-[var(--tf-accent)] to-[var(--tf-accent-3)] flex items-center justify-center text-white shadow-lg shadow-emerald-500/20">
+              <Sparkles className="w-5 h-5" />
             </div>
-            <span className="text-xl font-bold tracking-tight bg-gradient-to-r from-white via-indigo-200 to-indigo-400 bg-clip-text text-transparent">
-              TalentFlow <span className="font-extrabold text-indigo-500">AI</span>
-            </span>
+            <div>
+              <span className="text-lg font-bold tracking-tight">TalentFlow AI</span>
+              <span className="block text-xs text-[var(--tf-muted)]">Hiring intelligence studio</span>
+            </div>
           </div>
-          <div className="flex items-center gap-4">
-            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-indigo-950 text-indigo-300 border border-indigo-800/40">
-              Dev Mode Bypass Active
+          <div className="flex items-center gap-3">
+            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-white text-[var(--tf-accent)] border border-[var(--tf-border)]">
+              Sandbox Mode
             </span>
           </div>
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 relative z-10">
-        
-        {/* Banner Hero */}
-        <div className="mb-12 text-center sm:text-left">
-          <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl bg-gradient-to-r from-white via-gray-100 to-indigo-200 bg-clip-text text-transparent">
-            AI Recruitment Intelligence
-          </h1>
-          <p className="mt-3 text-lg text-gray-400 max-w-3xl">
-            Automate screening, parse CVs directly in the sandbox, extract clean profiles, generate embeddings, and score candidates explainably.
-          </p>
-        </div>
+        <section className="grid grid-cols-1 lg:grid-cols-[1.2fr,0.8fr] gap-10 items-end">
+          <div>
+            <p className="text-xs uppercase tracking-[0.2em] text-[var(--tf-muted)]">AI recruitment intelligence</p>
+            <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-[var(--tf-ink)] mt-3">
+              Curate shortlists with explainable, bias-aware scoring.
+            </h1>
+            <p className="mt-4 text-base sm:text-lg text-[var(--tf-muted)] max-w-2xl">
+              Upload CVs, extract structured profiles, generate semantic embeddings, and score candidates with transparent rationale at every step.
+            </p>
+            <div className="mt-6 flex flex-wrap gap-3">
+              {["Semantic matching", "LLM evaluation", "Bias audit", "Pipeline automation"].map((pill) => (
+                <span key={pill} className="px-3 py-1 rounded-full text-xs font-semibold border border-[var(--tf-border)] bg-white/70 text-[var(--tf-muted)]">
+                  {pill}
+                </span>
+              ))}
+            </div>
+          </div>
 
-        {/* Analytics Highlights */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
-          {[
-            { label: 'Active Recruitment Roles', value: jobs ? jobs.length : 1, icon: Briefcase, color: 'text-indigo-400', bg: 'bg-indigo-950/40' },
-            { label: 'Total CVs Processed', value: '2', icon: Users, color: 'text-purple-400', bg: 'bg-purple-950/40' },
-            { label: 'Passed Screening Threshold', value: '100%', icon: CheckCircle, color: 'text-emerald-400', bg: 'bg-emerald-950/40' },
-            { label: 'Avg Match Similarity', value: '60.1%', icon: BarChart3, color: 'text-amber-400', bg: 'bg-amber-950/40' },
-          ].map((stat, idx) => (
-            <div key={idx} className="bg-gray-900/40 border border-gray-800/80 rounded-2xl p-6 backdrop-blur-sm flex items-center justify-between transition-all hover:border-gray-700/60">
-              <div>
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">{stat.label}</p>
-                <p className="text-3xl font-extrabold text-white mt-2">{stat.value}</p>
+          <div className="bg-white/80 border border-[var(--tf-border)] rounded-3xl p-6 shadow-sm">
+            <p className="text-xs font-semibold text-[var(--tf-muted)] uppercase tracking-wider">Recruiting pulse</p>
+            <div className="mt-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-[var(--tf-ink)]">Active roles</span>
+                <span className="text-lg font-semibold text-[var(--tf-accent)]">{activeRoles}</span>
               </div>
-              <div className={`p-3.5 rounded-xl ${stat.bg} ${stat.color}`}>
-                <stat.icon className="w-6 h-6" />
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-[var(--tf-ink)]">Total CVs processed</span>
+                <span className="text-lg font-semibold text-[var(--tf-accent-3)]">{totalCandidates}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-[var(--tf-ink)]">Avg semantic similarity</span>
+                <span className="text-lg font-semibold text-[var(--tf-accent-2)]">{avgSemantic}</span>
               </div>
             </div>
-          ))}
-        </div>
+            <div className="mt-6 bg-[var(--tf-surface-2)] rounded-2xl p-4 text-sm text-[var(--tf-muted)]">
+              TalentFlow prioritizes explainability first. Every score is linked to evidence in the extracted profile.
+            </div>
+          </div>
+        </section>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          
-          {/* Job Openings Board */}
+        <section className="grid grid-cols-1 md:grid-cols-4 gap-6 mt-10">
+          {[
+            { label: 'Active Recruitment Roles', value: activeRoles, icon: Briefcase, accent: 'text-[var(--tf-accent)]' },
+            { label: 'Total CVs Processed', value: totalCandidates, icon: Users, accent: 'text-[var(--tf-accent-3)]' },
+            { label: 'Passed Screening Threshold', value: passRate, icon: CheckCircle, accent: 'text-emerald-600' },
+            { label: 'Avg Match Similarity', value: avgSemantic, icon: BarChart3, accent: 'text-[var(--tf-accent-2)]' },
+          ].map((stat, idx) => (
+            <div key={idx} className="bg-white/80 border border-[var(--tf-border)] rounded-2xl p-5 shadow-sm">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold text-[var(--tf-muted)] uppercase tracking-wider">{stat.label}</p>
+                <stat.icon className={`w-5 h-5 ${stat.accent}`} />
+              </div>
+              <p className="text-2xl font-bold text-[var(--tf-ink)] mt-3">{stat.value}</p>
+            </div>
+          ))}
+        </section>
+
+        <section className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-12">
           <div className="lg:col-span-2 space-y-6">
             <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-                <Briefcase className="w-5 h-5 text-indigo-500" /> Active Job Openings
+              <h2 className="text-2xl font-bold text-[var(--tf-ink)] flex items-center gap-2">
+                <Briefcase className="w-5 h-5 text-[var(--tf-accent)]" /> Active job pipelines
               </h2>
             </div>
 
             {isLoading ? (
-              <div className="flex flex-col items-center justify-center p-12 bg-gray-900/30 border border-gray-800 rounded-2xl">
-                <Loader2 className="w-10 h-10 text-indigo-500 animate-spin mb-4" />
-                <p className="text-gray-400 text-sm">Loading active recruitment jobs...</p>
+              <div className="flex flex-col items-center justify-center p-12 bg-white/70 border border-[var(--tf-border)] rounded-2xl">
+                <Loader2 className="w-10 h-10 text-[var(--tf-accent)] animate-spin mb-4" />
+                <p className="text-[var(--tf-muted)] text-sm">Loading active recruitment jobs...</p>
               </div>
             ) : jobs && jobs.length > 0 ? (
               <div className="grid grid-cols-1 gap-6">
                 {jobs.map((job: any) => (
-                  <div key={job.id} className="bg-gray-900/30 border border-gray-800/80 rounded-2xl p-6 transition-all hover:bg-gray-900/50 hover:border-indigo-500/40 group relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/5 rounded-bl-full pointer-events-none transition-all group-hover:bg-indigo-500/10"></div>
+                  <div key={job.id} className="bg-white/80 border border-[var(--tf-border)] rounded-2xl p-6 transition-all hover:shadow-md">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                       <div>
-                        <h3 className="text-lg font-bold text-white group-hover:text-indigo-400 transition-colors">
+                        <h3 className="text-lg font-bold text-[var(--tf-ink)]">
                           {job.title}
                         </h3>
-                        <p className="text-xs text-gray-500 mt-1">Job ID: {job.id}</p>
-                        <p className="text-sm text-gray-400 mt-3 line-clamp-2 max-w-xl">
+                        <p className="text-xs text-[var(--tf-muted)] mt-1">Job ID: {job.id}</p>
+                        <p className="text-sm text-[var(--tf-muted)] mt-3 line-clamp-2 max-w-xl">
                           {job.description}
                         </p>
                       </div>
                       <div className="flex sm:flex-col gap-2.5 shrink-0 justify-end">
-                        <a 
-                          href={`/jobs/${job.id}/pipeline`} 
-                          className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-gray-800 text-white hover:bg-indigo-600 transition-colors shadow-md"
+                        <a
+                          href={`/jobs/${job.id}/pipeline`}
+                          className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold border border-[var(--tf-border)] bg-white text-[var(--tf-ink)] hover:bg-[var(--tf-surface-2)] transition-colors"
                         >
                           <UploadCloud className="w-3.5 h-3.5" /> Upload CVs
                         </a>
-                        <a 
-                          href={`/jobs/${job.id}/shortlist`} 
-                          className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-indigo-600 text-white hover:bg-indigo-500 transition-colors shadow-md shadow-indigo-600/10"
+                        <a
+                          href={`/jobs/${job.id}/shortlist`}
+                          className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-[var(--tf-accent)] text-white hover:bg-emerald-700 transition-colors"
                         >
                           View Shortlist <ArrowRight className="w-3.5 h-3.5" />
                         </a>
@@ -159,42 +200,41 @@ export default function DashboardPage() {
                 ))}
               </div>
             ) : (
-              <div className="bg-gray-900/20 border border-dashed border-gray-800 rounded-2xl p-12 text-center">
-                <Briefcase className="w-12 h-12 text-gray-600 mx-auto mb-4" />
-                <h3 className="text-lg font-bold text-white">No active jobs found</h3>
-                <p className="text-gray-400 text-sm max-w-sm mx-auto mt-2">
-                  Create your first job description in the side panel or pre-fill the sample template to launch the recruitment flow.
+              <div className="bg-white/70 border border-dashed border-[var(--tf-border)] rounded-2xl p-12 text-center">
+                <Briefcase className="w-12 h-12 text-[var(--tf-muted)] mx-auto mb-4" />
+                <h3 className="text-lg font-bold text-[var(--tf-ink)]">No active jobs found</h3>
+                <p className="text-[var(--tf-muted)] text-sm max-w-sm mx-auto mt-2">
+                  Create your first role brief to launch the recruitment flow and start screening candidates.
                 </p>
               </div>
             )}
           </div>
 
-          {/* New Job Form */}
           <div className="lg:col-span-1">
-            <div className="bg-gray-900/40 border border-gray-800/80 rounded-3xl p-6 backdrop-blur-sm sticky top-24">
+            <div className="bg-white/90 border border-[var(--tf-border)] rounded-3xl p-6 shadow-sm sticky top-24">
               <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                  <Plus className="w-5 h-5 text-indigo-500" /> Create Recruitment Job
+                <h2 className="text-xl font-bold text-[var(--tf-ink)] flex items-center gap-2">
+                  <Plus className="w-5 h-5 text-[var(--tf-accent)]" /> Create role brief
                 </h2>
                 <button
                   type="button"
                   onClick={handlePreFillSample}
-                  className="text-xs font-bold text-indigo-400 hover:text-indigo-300 border border-indigo-500/20 px-2.5 py-1.5 rounded-lg transition-colors bg-indigo-950/20"
+                  className="text-xs font-semibold text-[var(--tf-accent)] hover:text-emerald-700 border border-[var(--tf-border)] px-2.5 py-1.5 rounded-lg transition-colors bg-white"
                 >
                   Fill Sample
                 </button>
               </div>
 
               {isSuccessMessageVisible && (
-                <div className="mb-6 p-4 rounded-xl bg-emerald-950/60 border border-emerald-800 text-emerald-400 text-sm font-medium animate-fadeIn">
-                  🎉 Job description registered successfully! Check the active job openings list.
+                <div className="mb-6 p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm font-medium">
+                  Job description registered successfully. Check the active job list.
                 </div>
               )}
 
               <form onSubmit={handleCreateJob} className="space-y-5">
                 <div>
-                  <label htmlFor="title" className="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">
-                    Job Title
+                  <label htmlFor="title" className="block text-xs font-semibold uppercase tracking-wider text-[var(--tf-muted)] mb-2">
+                    Job title
                   </label>
                   <input
                     type="text"
@@ -203,33 +243,33 @@ export default function DashboardPage() {
                     onChange={(e) => setNewTitle(e.target.value)}
                     placeholder="e.g. Senior Backend Engineer"
                     required
-                    className="w-full bg-[#0a0d1d] border border-gray-800/80 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+                    className="w-full bg-white border border-[var(--tf-border)] rounded-xl px-4 py-3 text-sm text-[var(--tf-ink)] placeholder:text-[var(--tf-muted)] focus:outline-none focus:border-[var(--tf-accent)] focus:ring-1 focus:ring-[var(--tf-accent)] transition-all"
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="desc" className="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">
-                    Job Description & Requirements
+                  <label htmlFor="desc" className="block text-xs font-semibold uppercase tracking-wider text-[var(--tf-muted)] mb-2">
+                    Role overview & requirements
                   </label>
                   <textarea
                     id="desc"
                     value={newDescription}
                     onChange={(e) => setNewDescription(e.target.value)}
-                    placeholder="Paste job details, stack, guidelines..."
+                    placeholder="Paste job details, stack, responsibilities..."
                     required
                     rows={8}
-                    className="w-full bg-[#0a0d1d] border border-gray-800/80 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all resize-none font-mono"
+                    className="w-full bg-white border border-[var(--tf-border)] rounded-xl px-4 py-3 text-sm text-[var(--tf-ink)] placeholder:text-[var(--tf-muted)] focus:outline-none focus:border-[var(--tf-accent)] focus:ring-1 focus:ring-[var(--tf-accent)] transition-all resize-none font-mono"
                   />
                 </div>
 
                 <button
                   type="submit"
                   disabled={createJobMutation.isPending}
-                  className="w-full flex items-center justify-center gap-2 px-6 py-3.5 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-xl font-semibold text-sm hover:from-indigo-600 hover:to-purple-700 transition-all shadow-lg shadow-indigo-600/15 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  className="w-full flex items-center justify-center gap-2 px-6 py-3.5 bg-[var(--tf-accent)] text-white rounded-xl font-semibold text-sm hover:bg-emerald-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                 >
                   {createJobMutation.isPending ? (
                     <>
-                      <Loader2 className="w-4 h-4 animate-spin" /> Registering Job...
+                      <Loader2 className="w-4 h-4 animate-spin" /> Registering role...
                     </>
                   ) : (
                     <>
@@ -240,9 +280,7 @@ export default function DashboardPage() {
               </form>
             </div>
           </div>
-
-        </div>
-
+        </section>
       </main>
     </div>
   )

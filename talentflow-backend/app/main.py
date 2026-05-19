@@ -4,15 +4,19 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.core.middleware import RequestContextMiddleware
 from app.core.exceptions import TalentFlowException, talentflow_exception_handler, global_exception_handler
+from app.core.database import init_db, close_db
+from app.core.redis import init_redis, close_redis
 import app.models
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # init DB pool, Redis, embedding model
-    print("Starting up...")
+    await init_db()
+    await init_redis()
     yield
-    print("Shutting down...")
+    await close_db()
+    await close_redis()
 
 app = FastAPI(title="TalentFlow AI", version="0.1.0", lifespan=lifespan)
 

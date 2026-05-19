@@ -1,6 +1,8 @@
-from pydantic import BaseModel, EmailStr, AnyUrl, ConfigDict
+import json
+from pydantic import BaseModel, EmailStr, AnyUrl, ConfigDict, field_validator
 from typing import Optional, List
-from datetime import date
+from datetime import date, datetime
+from uuid import UUID
 
 class SkillEntry(BaseModel):
     name:               str
@@ -63,3 +65,36 @@ class BiasAuditResult(BaseModel):
     location_detected: bool = False
     pronouns_detected: bool = False
     raw_text_excerpt: Optional[str] = None
+
+class CandidateResponse(BaseModel):
+    id: UUID
+    org_id: UUID
+    job_id: UUID
+    batch_id: UUID
+    r2_key: str
+    original_filename: str
+    file_size_bytes: int
+    profile: Optional[dict] = None
+    extraction_confidence: Optional[float] = None
+    needs_manual_review: bool
+    semantic_score: Optional[float] = None
+    llm_score: Optional[float] = None
+    total_score: Optional[float] = None
+    score_breakdown: Optional[dict] = None
+    auto_rejected: bool
+    processing_status: str
+    recruiter_status: Optional[str] = None
+    recruiter_note: Optional[str] = None
+    status_updated_by: Optional[UUID] = None
+    status_updated_at: Optional[datetime] = None
+    model_config = ConfigDict(from_attributes=True)
+
+    @field_validator("profile", "score_breakdown", mode="before")
+    @classmethod
+    def _parse_json_fields(cls, value):
+        if isinstance(value, str):
+            try:
+                return json.loads(value)
+            except Exception:
+                return None
+        return value

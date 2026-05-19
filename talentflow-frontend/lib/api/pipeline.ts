@@ -1,13 +1,20 @@
 import { apiClient } from './client'
 
+export type BatchFileItem = {
+  r2_key: string
+  filename: string
+  size_bytes: number
+  content_type: string
+}
+
 export const getUploadUrls = async (files: Array<{filename: string, content_type: string, size_bytes: number}>) => {
   return apiClient.post('/pipeline/upload-urls', files)
 }
 
-export const submitBatch = async (jobId: string, r2Keys: string[], idempotencyKey?: string) => {
+export const submitBatch = async (jobId: string, files: BatchFileItem[], idempotencyKey?: string) => {
   return apiClient.post('/pipeline/submit', {
     job_id: jobId,
-    r2_keys: r2Keys,
+    files,
     idempotency_key: idempotencyKey
   })
 }

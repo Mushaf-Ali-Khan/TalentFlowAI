@@ -29,6 +29,14 @@ class Settings(BaseSettings):
     ENVIRONMENT: str
     SECRET_KEY: str
     LANGCHAIN_TRACING_V2: str | None = None
+    ENABLE_LANGGRAPH_CHECKPOINTS: bool = True
+    JOB_EMBEDDING_CACHE_TTL_SECONDS: int = 3600
+    SMTP_HOST: str | None = None
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: str | None = None
+    SMTP_PASSWORD: str | None = None
+    SMTP_FROM_EMAIL: str | None = None
+    SMTP_USE_TLS: bool = True
 
     model_config = SettingsConfigDict(env_file=".env.local", extra="ignore")
 

@@ -6,6 +6,7 @@ from fastapi import Request, Depends, HTTPException, status
 from pydantic import BaseModel
 from uuid import UUID
 from app.config import settings
+from app.core.redis import get_redis
 
 logger = logging.getLogger(__name__)
 
@@ -13,13 +14,33 @@ class ClerkUser(BaseModel):
     clerk_user_id: str
     org_id: UUID
     role: str
+    email: Optional[str] = None
+    full_name: Optional[str] = None
 
-async def get_redis():
-    # Placeholder for Redis connection dependency
-    class MockRedis:
-        async def get(self, key): return None
-        async def setex(self, key, ttl, val): pass
-    return MockRedis()
+def _extract_email(claims: dict) -> Optional[str]:
+    for key in ("email", "email_address", "primary_email_address"):
+        value = claims.get(key)
+        if isinstance(value, str) and value:
+            return value
+    emails = claims.get("email_addresses") or claims.get("emailAddresses")
+    if isinstance(emails, list) and emails:
+        first = emails[0]
+        if isinstance(first, str):
+            return first
+        if isinstance(first, dict):
+            return first.get("email_address") or first.get("email")
+    return None
+
+def _extract_full_name(claims: dict) -> Optional[str]:
+    for key in ("full_name", "fullName", "name"):
+        value = claims.get(key)
+        if isinstance(value, str) and value:
+            return value
+    first = claims.get("first_name") or claims.get("firstName")
+    last = claims.get("last_name") or claims.get("lastName")
+    if first or last:
+        return f"{first or ''} {last or ''}".strip() or None
+    return None
 
 async def verify_clerk_jwt(token: str, redis) -> ClerkUser:
     if not token:
@@ -32,23 +53,39 @@ async def verify_clerk_jwt(token: str, redis) -> ClerkUser:
         
     # Verify with Clerk SDK
     try:
-        from clerk_backend_api import Clerk
-        clerk = Clerk(bearer_auth=settings.CLERK_SECRET_KEY)
-        
-        # Verify token - using a placeholder since actual Clerk client method signature may vary
-        # claims = clerk.clients.verify_token(token) 
-        
-        # Fake claims for local dev
-        claims = {
-            "sub": "user_123",
-            "org_id": "00000000-0000-0000-0000-000000000000",
-            "org_role": "admin"
-        }
+        claims = None
+
+        try:
+            from clerk_backend_api import Clerk
+            clerk = Clerk(bearer_auth=settings.CLERK_SECRET_KEY)
+            if hasattr(clerk, "verify_token"):
+                claims = clerk.verify_token(token)
+            elif hasattr(clerk, "jwt") and hasattr(clerk.jwt, "verify_token"):
+                claims = clerk.jwt.verify_token(token)
+        except Exception as e:
+            logger.warning(f"Clerk client verify failed: {e}")
+
+        if claims is None:
+            try:
+                from clerk_backend_api import verify_token
+                claims = verify_token(token, settings.CLERK_SECRET_KEY)
+            except Exception as e:
+                logger.warning(f"Clerk verify_token fallback failed: {e}")
+
+        if claims is None:
+            raise ValueError("Token verification failed")
+
+        org_id = claims.get("org_id") or claims.get("orgId")
+        org_role = claims.get("org_role") or claims.get("orgRole") or "viewer"
+        email = _extract_email(claims)
+        full_name = _extract_full_name(claims)
         
         user = ClerkUser(
-            clerk_user_id=claims['sub'],
-            org_id=UUID(claims['org_id']),
-            role=claims.get('org_role', 'viewer'),
+            clerk_user_id=claims["sub"],
+            org_id=UUID(org_id) if org_id else UUID("00000000-0000-0000-0000-000000000000"),
+            role=org_role,
+            email=email,
+            full_name=full_name,
         )
         
         await redis.setex(cache_key, settings.JWT_CACHE_TTL_SECONDS, user.model_dump_json())
@@ -62,7 +99,9 @@ async def verify_clerk_jwt(token: str, redis) -> ClerkUser:
             return ClerkUser(
                 clerk_user_id="dev_user",
                 org_id=UUID("00000000-0000-0000-0000-000000000000"),
-                role="admin"
+                role="admin",
+                email="dev_user@local.test",
+                full_name="Dev User"
             )
         raise HTTPException(status_code=401, detail="Invalid token")
 
@@ -74,7 +113,9 @@ async def get_current_user(request: Request, redis = Depends(get_redis)) -> Cler
             return ClerkUser(
                 clerk_user_id="dev_user",
                 org_id=UUID("00000000-0000-0000-0000-000000000000"),
-                role="admin"
+                role="admin",
+                email="dev_user@local.test",
+                full_name="Dev User"
             )
         raise HTTPException(status_code=401, detail="Missing or invalid authorization header")
         

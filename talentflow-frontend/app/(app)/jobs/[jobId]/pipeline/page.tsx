@@ -4,14 +4,16 @@ import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import { CVDropzone } from '@/components/pipeline/cv-dropzone'
 import { usePipelineStore } from '@/lib/stores/pipeline-store'
-import { getUploadUrls, uploadFileDirectly, submitBatch, getBatchStatus } from '@/lib/api/pipeline'
+import { getUploadUrls, uploadFileDirectly, submitBatch, getBatchStatus, type BatchFileItem } from '@/lib/api/pipeline'
 import { AgentStatusTimeline, StepStatus } from '@/components/pipeline/agent-status-timeline'
 import { Play, CheckCircle2, AlertTriangle, Loader2 } from 'lucide-react'
+import { useToast } from '@/lib/providers/toast-provider'
 
 export default function PipelinePage() {
   const { jobId } = useParams()
   const [isProcessing, setIsProcessing] = useState(false)
   const [batchStatus, setBatchStatus] = useState<any>(null)
+  const { pushToast } = useToast()
   
   const stagedFiles = usePipelineStore(state => state.stagedFiles)
   const updateFileStatus = usePipelineStore(state => state.updateFileStatus)
@@ -32,11 +34,12 @@ export default function PipelinePage() {
           }
         } catch (error) {
           console.error("Failed to poll batch status", error)
+          pushToast('Failed to refresh batch status.', 'error')
         }
       }, 3000)
     }
     return () => clearInterval(interval)
-  }, [batchId, batchStatus])
+  }, [batchId, batchStatus, pushToast])
 
   const handleProcessBatch = async () => {
     if (stagedFiles.length === 0) return
@@ -60,7 +63,8 @@ export default function PipelinePage() {
         try {
           // Simulate progress
           const interval = setInterval(() => {
-            usePipelineStore.getState().updateFileProgress(f.id, Math.min(90, f.progress + 10))
+            const current = usePipelineStore.getState().stagedFiles.find(sf => sf.id === f.id)?.progress ?? 0
+            usePipelineStore.getState().updateFileProgress(f.id, Math.min(90, current + 10))
           }, 200)
           
           await uploadFileDirectly(data.upload_url, f.file)
@@ -75,17 +79,25 @@ export default function PipelinePage() {
         }
       })
 
-      const r2Keys = await Promise.all(uploadPromises)
+      await Promise.all(uploadPromises)
+
+      const filesForSubmit: BatchFileItem[] = stagedFiles.map((f, index) => ({
+        r2_key: uploadData[index].r2_key,
+        filename: f.file.name,
+        size_bytes: f.file.size,
+        content_type: f.file.type || 'application/octet-stream'
+      }))
 
       // 3. Submit Batch to Backend
       const idempotencyKey = crypto.randomUUID()
-      const batchRes = await submitBatch(jobId as string, r2Keys, idempotencyKey)
+      const batchRes = await submitBatch(jobId as string, filesForSubmit, idempotencyKey)
       
       setBatchId(batchRes.id)
       setBatchStatus(batchRes)
 
     } catch (error) {
       console.error("Batch processing failed", error)
+      pushToast('Batch processing failed. Please try again.', 'error')
       setIsProcessing(false)
     }
   }
@@ -123,17 +135,39 @@ export default function PipelinePage() {
     return steps
   }
 
+  const progressPercent = batchStatus?.total_cvs
+    ? Math.round((batchStatus.processed_cvs / batchStatus.total_cvs) * 100)
+    : 0
+
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="flex items-center justify-between mb-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Add Candidates</h1>
-          <p className="text-sm text-gray-500 mt-1">Upload CVs to process them through the AI pipeline.</p>
+          <h1 className="text-3xl font-bold text-[var(--tf-ink)]">Add candidates</h1>
+          <p className="text-sm text-[var(--tf-muted)] mt-1">Upload CVs and run the full TalentFlow pipeline.</p>
         </div>
         {batchStatus?.status === 'completed' && (
-          <a href={`/jobs/${jobId}/shortlist`} className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors">
-            View Shortlist
-          </a>
+          <div className="flex flex-wrap gap-3">
+            <a href={`/jobs/${jobId}/shortlist`} className="px-4 py-2 bg-[var(--tf-accent)] text-white rounded-lg font-medium hover:bg-emerald-700 transition-colors">
+              View Shortlist
+            </a>
+            {batchId && (
+              <>
+                <a
+                  href={`/api/v1/reports/batch/${batchId}?format=csv`}
+                  className="px-4 py-2 border border-[var(--tf-border)] bg-white text-[var(--tf-ink)] rounded-lg font-medium hover:bg-[var(--tf-surface-2)] transition-colors"
+                >
+                  Download CSV
+                </a>
+                <a
+                  href={`/api/v1/reports/batch/${batchId}?format=pdf`}
+                  className="px-4 py-2 border border-[var(--tf-border)] bg-white text-[var(--tf-ink)] rounded-lg font-medium hover:bg-[var(--tf-surface-2)] transition-colors"
+                >
+                  Download PDF
+                </a>
+              </>
+            )}
+          </div>
         )}
       </div>
 
@@ -145,7 +179,7 @@ export default function PipelinePage() {
             <button
               onClick={handleProcessBatch}
               disabled={stagedFiles.length === 0 || isProcessing || batchStatus?.status === 'completed'}
-              className="flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center px-6 py-3 bg-[var(--tf-accent)] text-white rounded-lg font-medium hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isProcessing ? (
                 <>
@@ -160,20 +194,20 @@ export default function PipelinePage() {
           </div>
 
           {batchStatus && (
-            <div className="bg-white p-6 border rounded-xl shadow-sm">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Batch Progress</h3>
+            <div className="bg-white/90 p-6 border border-[var(--tf-border)] rounded-2xl shadow-sm">
+              <h3 className="text-lg font-semibold text-[var(--tf-ink)] mb-4">Batch progress</h3>
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-gray-700">
+                <span className="text-sm font-medium text-[var(--tf-muted)]">
                   {batchStatus.processed_cvs} / {batchStatus.total_cvs} Processed
                 </span>
-                <span className="text-sm font-medium text-gray-500">
-                  {Math.round((batchStatus.processed_cvs / batchStatus.total_cvs) * 100)}%
+                <span className="text-sm font-medium text-[var(--tf-muted)]">
+                  {progressPercent}%
                 </span>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-2.5">
+              <div className="w-full bg-[var(--tf-surface-2)] rounded-full h-2.5">
                 <div 
-                  className="bg-blue-600 h-2.5 rounded-full transition-all duration-500" 
-                  style={{ width: `${(batchStatus.processed_cvs / batchStatus.total_cvs) * 100}%` }}
+                  className="bg-[var(--tf-accent)] h-2.5 rounded-full transition-all duration-500" 
+                  style={{ width: `${progressPercent}%` }}
                 ></div>
               </div>
             </div>
@@ -181,8 +215,8 @@ export default function PipelinePage() {
         </div>
 
         <div className="lg:col-span-1">
-          <div className="bg-white p-6 border rounded-xl shadow-sm sticky top-8">
-            <h3 className="text-lg font-semibold text-gray-900 mb-6">Agent Pipeline Status</h3>
+          <div className="bg-white/90 p-6 border border-[var(--tf-border)] rounded-2xl shadow-sm sticky top-8">
+            <h3 className="text-lg font-semibold text-[var(--tf-ink)] mb-6">Agent pipeline status</h3>
             <AgentStatusTimeline steps={getTimelineSteps()} />
           </div>
         </div>

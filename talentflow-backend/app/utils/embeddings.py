@@ -11,27 +11,36 @@ class EmbeddingService:
 
     def __new__(cls):
         if cls._instance is None:
-            logger.info(f"Loading embedding model: {settings.EMBEDDING_MODEL_PATH}")
             cls._instance = super(EmbeddingService, cls).__new__(cls)
-            try:
-                # Load the model. For local dev this will download it if not present
-                cls._instance.model = SentenceTransformer(settings.EMBEDDING_MODEL_PATH)
-                cls._instance.model_version = settings.EMBEDDING_MODEL_VERSION
-            except Exception as e:
-                logger.error(f"Failed to load embedding model: {e}")
-                # Fallback to a smaller model for local development
-                try:
-                    logger.info("Falling back to all-MiniLM-L6-v2 (small local model)")
-                    cls._instance.model = SentenceTransformer("all-MiniLM-L6-v2")
-                    cls._instance.model_version = "all-MiniLM-L6-v2-fallback"
-                except Exception as e2:
-                    logger.error(f"Failed to load fallback embedding model: {e2}")
-                    cls._instance.model = None
-                    cls._instance.model_version = None
+            cls._instance.model = None
+            cls._instance.model_version = None
         return cls._instance
+
+    def _ensure_loaded(self) -> None:
+        if self.model is not None:
+            return
+
+        logger.info(f"Loading embedding model: {settings.EMBEDDING_MODEL_PATH}")
+        try:
+            # Load the model. For local dev this will download it if not present
+            self.model = SentenceTransformer(settings.EMBEDDING_MODEL_PATH)
+            self.model_version = settings.EMBEDDING_MODEL_VERSION
+            return
+        except Exception as e:
+            logger.error(f"Failed to load embedding model: {e}")
+
+        try:
+            logger.info("Falling back to all-MiniLM-L6-v2 (small local model)")
+            self.model = SentenceTransformer("all-MiniLM-L6-v2")
+            self.model_version = "all-MiniLM-L6-v2-fallback"
+        except Exception as e2:
+            logger.error(f"Failed to load fallback embedding model: {e2}")
+            self.model = None
+            self.model_version = None
 
     def encode(self, text: str) -> List[float]:
         """Generate embedding vector for a given string."""
+        self._ensure_loaded()
         if not self.model:
             raise RuntimeError("Embedding model is not loaded.")
         
