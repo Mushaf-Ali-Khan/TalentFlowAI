@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     MAX_BATCH_FILES: int
     MAX_FILE_SIZE_MB: int
     AUTO_REJECT_THRESHOLD: float
+    AUTO_SHORTLIST_THRESHOLD: float = 75.0
     JWT_CACHE_TTL_SECONDS: int
     ENVIRONMENT: str
     SECRET_KEY: str

@@ -32,3 +32,11 @@ body {
   background: rgba(13, 148, 136, 0.2);
   color: #0f172a;
 }
+
+/* Hide Clerk's development mode "Configure Your Application" banner.
+   This only appears with test/dev keys and is not shown in production. */
+.cl-internal-1hp5nqm,
+[data-clerk-keyless-ui],
+div[class*="cl-internal-"] > div:has(> a[href*="clerk.com/setup"]) {
+  display: none !important;
+}

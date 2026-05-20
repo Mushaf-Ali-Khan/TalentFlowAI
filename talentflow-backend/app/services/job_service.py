@@ -42,8 +42,10 @@ class JobService:
             vector = embedding_service.encode(embedding_text)
             job_data['embedding'] = vector
             job_data['embedding_model_ver'] = embedding_service.version
+            logger.info(f"Job embedding generated: {len(vector)}-dim vector")
         except Exception as e:
-            logger.warning(f"Failed to build job embedding: {e}")
+            import traceback
+            logger.error(f"Failed to build job embedding: {e}\n{traceback.format_exc()}")
 
         job = await job_repo.create(db, job_data)
         if job.embedding and job.embedding_model_ver:

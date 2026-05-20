@@ -2,7 +2,8 @@ import logging
 from app.agents.state import PipelineState
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
-from app.core.database import async_session
+from app.core.database import get_worker_session_factory
+from app.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -30,23 +31,32 @@ class PersistNode:
             processing_status = "needs_review"
             
         notify_email = None
-        async with async_session() as session:
+        async with get_worker_session_factory()() as session:
             async with session.begin():
                 try:
-                    # 1. Update Candidate
-                    # We use raw SQL for performance and exact control
+                    # Determine auto-shortlist/auto-reject status
+                    total_score = state.get("total_score", 0.0) or 0.0
+                    auto_rejected = state.get("auto_rejected", False)
+                    recruiter_status = None
+                    if auto_rejected:
+                        recruiter_status = "rejected"
+                    elif total_score >= settings.AUTO_SHORTLIST_THRESHOLD:
+                        recruiter_status = "shortlisted"
+
+                    # 1. Update Candidate (CRITICAL — must succeed)
                     update_candidate_sql = text("""
                         UPDATE candidates
-                        SET profile = :profile::jsonb,
+                        SET profile = CAST(:profile AS jsonb),
                             extraction_confidence = :confidence,
                             needs_manual_review = :needs_review,
-                            embedding = :embedding,
+                            embedding = CAST(:embedding AS vector),
                             embedding_model_ver = :model_ver,
                             semantic_score = :semantic_score,
                             llm_score = :llm_score,
                             total_score = :total_score,
-                            score_breakdown = :score_breakdown::jsonb,
+                            score_breakdown = CAST(:score_breakdown AS jsonb),
                             auto_rejected = :auto_rejected,
+                            recruiter_status = COALESCE(recruiter_status, :recruiter_status),
                             processing_status = :status,
                             updated_at = NOW()
                         WHERE id = :id
@@ -61,32 +71,19 @@ class PersistNode:
                         "profile": profile_json,
                         "confidence": state.get("extraction_confidence"),
                         "needs_review": state.get("needs_manual_review", False),
-                        "embedding": str(state.get("embedding")) if state.get("embedding") else None, # pgvector expects string repr
+                        "embedding": ("[" + ",".join(str(v) for v in state.get("embedding")) + "]") if state.get("embedding") else None,
                         "model_ver": state.get("embedding_model_ver"),
                         "semantic_score": state.get("semantic_score"),
                         "llm_score": state.get("llm_score"),
                         "total_score": state.get("total_score"),
                         "score_breakdown": score_json,
                         "auto_rejected": state.get("auto_rejected", False),
+                        "recruiter_status": recruiter_status,
                         "status": processing_status,
                         "id": str(candidate_id)
                     })
                     
-                    # 2. Insert Bias Audit Log
-                    bias_result = state.get("bias_audit_result")
-                    if bias_result:
-                        insert_bias_sql = text("""
-                            INSERT INTO bias_audit_log (id, candidate_id, org_id, detected_signals, raw_text_excerpt, created_at, updated_at)
-                            VALUES (gen_random_uuid(), :candidate_id, :org_id, :signals::jsonb, :excerpt, NOW(), NOW())
-                        """)
-                        await session.execute(insert_bias_sql, {
-                            "candidate_id": str(candidate_id),
-                            "org_id": str(state.get("org_id")),
-                            "signals": json.dumps(bias_result),
-                            "excerpt": bias_result.get("raw_text_excerpt")
-                        })
-                    
-                    # 3. Update Batch counter
+                    # 2. Update Batch counter
                     update_batch_sql = text("""
                         UPDATE batches 
                         SET processed_cvs = processed_cvs + 1 
@@ -98,7 +95,6 @@ class PersistNode:
                     
                     # Check if batch completed
                     if row and row.processed_cvs >= row.total_cvs:
-                        # Mark batch as completed
                         result = await session.execute(text("""
                             UPDATE batches
                             SET status = 'completed', completed_at = NOW()
@@ -119,7 +115,27 @@ class PersistNode:
                         
                 except Exception as e:
                     logger.error(f"PersistNode transaction failed: {e}")
-                    raise # Let retry mechanism handle it
+                    raise
+
+        # 3. Insert Bias Audit Log AFTER candidate commit (separate transaction)
+        bias_result = state.get("bias_audit_result")
+        if bias_result:
+            try:
+                async with get_worker_session_factory()() as session:
+                    async with session.begin():
+                        import json as json_mod
+                        insert_bias_sql = text("""
+                            INSERT INTO bias_audit_log (id, candidate_id, org_id, detected_signals, raw_text_excerpt, created_at, updated_at)
+                            VALUES (gen_random_uuid(), :candidate_id, :org_id, CAST(:signals AS jsonb), :excerpt, NOW(), NOW())
+                        """)
+                        await session.execute(insert_bias_sql, {
+                            "candidate_id": str(candidate_id),
+                            "org_id": str(state.get("org_id")),
+                            "signals": json_mod.dumps(bias_result),
+                            "excerpt": bias_result.get("raw_text_excerpt")
+                        })
+            except Exception as e:
+                logger.warning(f"Bias audit log insert failed (non-critical): {e}")
         
         if notify_email:
             try:

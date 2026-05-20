@@ -8,7 +8,7 @@ export type BatchFileItem = {
 }
 
 export const getUploadUrls = async (files: Array<{filename: string, content_type: string, size_bytes: number}>) => {
-  return apiClient.post('/pipeline/upload-urls', files)
+  return apiClient.post('/pipeline/upload-urls', files) as any
 }
 
 export const submitBatch = async (jobId: string, files: BatchFileItem[], idempotencyKey?: string) => {
@@ -16,11 +16,11 @@ export const submitBatch = async (jobId: string, files: BatchFileItem[], idempot
     job_id: jobId,
     files,
     idempotency_key: idempotencyKey
-  })
+  }) as any
 }
 
 export const getBatchStatus = async (batchId: string) => {
-  return apiClient.get(`/pipeline/${batchId}`)
+  return apiClient.get(`/pipeline/${batchId}`) as any
 }
 
 // In a real implementation this would use R2 presigned URLs

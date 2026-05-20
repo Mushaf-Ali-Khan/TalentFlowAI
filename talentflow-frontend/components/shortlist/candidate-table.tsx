@@ -42,7 +42,11 @@ export function CandidateTable({ candidates, onRowClick }: { candidates: Candida
                   <div className="ml-4">
                     <div className="text-sm font-medium text-[var(--tf-ink)] flex items-center gap-2">
                       {person.name}
-                      {person.needs_manual_review && <ShieldAlert className="w-4 h-4 text-orange-500" title="Needs Manual Review" />}
+                      {person.needs_manual_review && (
+                        <span title="Needs Manual Review">
+                          <ShieldAlert className="w-4 h-4 text-orange-500" />
+                        </span>
+                      )}
                     </div>
                     <div className="text-sm text-[var(--tf-muted)]">{person.role}</div>
                   </div>

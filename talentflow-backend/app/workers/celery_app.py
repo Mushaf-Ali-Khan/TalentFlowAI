@@ -28,3 +28,5 @@ app.config_from_object({
         Queue('notifications',  Exchange('notifications'),  routing_key='notify', priority=1),
     ),
 })
+
+app.autodiscover_tasks(['app.workers.cv_tasks', 'app.workers.notification_tasks'])

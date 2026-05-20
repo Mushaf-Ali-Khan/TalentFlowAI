@@ -7,13 +7,14 @@ const isPublicRoute = createRouteMatcher([
   "/api/health(.*)",
 ]);
 
-export default clerkMiddleware((auth, req) => {
+export default clerkMiddleware(async (auth, req) => {
   if (!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY) {
     return NextResponse.next();
   }
 
   if (!isPublicRoute(req)) {
-    auth().protect();
+    const authObj: any = await auth();
+    authObj.protect();
   }
 });
 

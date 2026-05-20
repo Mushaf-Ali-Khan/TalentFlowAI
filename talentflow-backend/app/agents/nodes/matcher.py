@@ -4,7 +4,7 @@ import math
 from typing import List
 from app.agents.state import PipelineState
 from app.config import settings
-from app.core.database import async_session
+from app.core.database import get_worker_session_factory
 from app.core.redis import get_redis
 from app.models.job import Job
 from sqlalchemy import select
@@ -47,7 +47,7 @@ class MatcherNode:
         if cached:
             return cached
 
-        async with async_session() as session:
+        async with get_worker_session_factory()() as session:
             result = await session.execute(
                 select(Job.embedding, Job.embedding_model_ver).where(Job.id == job_id)
             )
@@ -71,7 +71,7 @@ class MatcherNode:
             except Exception:
                 return []
 
-        embedding_list = list(embedding)
+        embedding_list = [float(v) for v in embedding]
         try:
             redis = await get_redis()
             await redis.setex(cache_key, settings.JOB_EMBEDDING_CACHE_TTL_SECONDS, json.dumps(embedding_list))

@@ -6,6 +6,7 @@ from .candidates import router as candidates_router
 from .shortlists import router as shortlists_router
 from .analytics import router as analytics_router
 from .reports import router as reports_router
+from .interviews import router as interviews_router
 
 api_router = APIRouter()
 
@@ -16,4 +17,6 @@ api_router.include_router(candidates_router, prefix="/candidates", tags=["candid
 api_router.include_router(shortlists_router, prefix="/shortlists", tags=["shortlists"])
 api_router.include_router(analytics_router, prefix="/analytics", tags=["analytics"])
 api_router.include_router(reports_router, prefix="/reports", tags=["reports"])
+api_router.include_router(interviews_router, prefix="/interviews", tags=["interviews"])
+
 

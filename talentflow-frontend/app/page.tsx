@@ -7,6 +7,8 @@ import { getAnalyticsOverview } from '@/lib/api/analytics'
 import { Briefcase, Users, CheckCircle, BarChart3, Plus, ArrowRight, UploadCloud, Sparkles, Loader2 } from 'lucide-react'
 import { useToast } from '@/lib/providers/toast-provider'
 
+import { GlobalHeader } from '@/components/global-header'
+
 export default function DashboardPage() {
   const queryClient = useQueryClient()
   const [newTitle, setNewTitle] = useState('')
@@ -77,24 +79,8 @@ export default function DashboardPage() {
       <div className="absolute -top-32 -left-40 h-[520px] w-[520px] rounded-full bg-[var(--tf-accent-3)]/10 blur-[120px]" />
       <div className="absolute -top-24 right-[-10%] h-[420px] w-[420px] rounded-full bg-[var(--tf-accent)]/10 blur-[120px]" />
 
-      <header className="border-b border-[var(--tf-border)] bg-white/70 backdrop-blur sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-[var(--tf-accent)] to-[var(--tf-accent-3)] flex items-center justify-center text-white shadow-lg shadow-emerald-500/20">
-              <Sparkles className="w-5 h-5" />
-            </div>
-            <div>
-              <span className="text-lg font-bold tracking-tight">TalentFlow AI</span>
-              <span className="block text-xs text-[var(--tf-muted)]">Hiring intelligence studio</span>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-white text-[var(--tf-accent)] border border-[var(--tf-border)]">
-              Sandbox Mode
-            </span>
-          </div>
-        </div>
-      </header>
+      <GlobalHeader />
+
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 relative z-10">
         <section className="grid grid-cols-1 lg:grid-cols-[1.2fr,0.8fr] gap-10 items-end">

@@ -7,7 +7,7 @@ import { getJob, getCandidatesForJob } from '@/lib/api/jobs'
 import { getCandidate, updateCandidateStatus } from '@/lib/api/candidates'
 import { CandidateTable, type CandidateRow } from '@/components/shortlist/candidate-table'
 import { CandidateDrawer, type CandidateDetail } from '@/components/shortlist/candidate-drawer'
-import { ArrowLeft, Sparkles, AlertCircle, RefreshCw, UploadCloud, CheckCircle2, XCircle, Search, Loader2 } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Sparkles, AlertCircle, RefreshCw, UploadCloud, CheckCircle2, XCircle, Search, Loader2 } from 'lucide-react'
 import { useToast } from '@/lib/providers/toast-provider'
 
 export default function ShortlistPage() {
@@ -27,7 +27,7 @@ export default function ShortlistPage() {
   })
 
   // 2. Fetch Screened Candidates
-  const { data: rawCandidates, isLoading: isCandidatesLoading, error: candidatesError, refetch } = useQuery<any[]>({
+  const { data: rawCandidates, isLoading: isCandidatesLoading, error: candidatesError, refetch } = useQuery<any>({
     queryKey: ['candidates', jobId],
     queryFn: () => getCandidatesForJob(jobId as string),
   })
@@ -85,8 +85,10 @@ export default function ShortlistPage() {
     return fallback
   }
 
+  const candidatesArray = (rawCandidates || []) as any[]
+
   // Normalize candidates into table schema first, then apply search filtering
-  const normalizedCandidates = (rawCandidates || []).map(c => {
+  const normalizedCandidates = candidatesArray.map((c: any) => {
     const name = c.name || c.profile?.name || 'Candidate'
     const scoreData = c.score_breakdown || {}
     return {
@@ -102,7 +104,7 @@ export default function ShortlistPage() {
     } as CandidateRow
   })
 
-  const filteredCandidates = normalizedCandidates.filter(c =>
+  const filteredCandidates = normalizedCandidates.filter((c: CandidateRow) =>
     c.name.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
@@ -147,10 +149,10 @@ export default function ShortlistPage() {
     raw_profile: candidateDetail.profile || {}
   } as CandidateDetail : null
 
-  const shortlistedCount = filteredCandidates.filter(c => c.status === 'shortlisted').length
-  const flaggedCount = filteredCandidates.filter(c => c.needs_manual_review).length
+  const shortlistedCount = filteredCandidates.filter((c: CandidateRow) => c.status === 'shortlisted').length
+  const flaggedCount = filteredCandidates.filter((c: CandidateRow) => c.needs_manual_review).length
   const avgScore = filteredCandidates.length > 0 
-    ? filteredCandidates.reduce((acc, curr) => acc + curr.total_score, 0) / filteredCandidates.length
+    ? filteredCandidates.reduce((acc: number, curr: CandidateRow) => acc + curr.total_score, 0) / filteredCandidates.length
     : 0
 
   return (
@@ -305,7 +307,7 @@ export default function ShortlistPage() {
                       </td>
 
                       <td className="px-6 py-4 max-w-xs truncate text-[var(--tf-muted)] font-medium">
-                        {rawCandidates?.find(rc => rc.id === candidate.id)?.profile?.skills?.map((s: any) => s.name).slice(0, 4).join(', ') || 'General Technical skills'}
+                        {candidatesArray?.find((rc: any) => rc.id === candidate.id)?.profile?.skills?.map((s: any) => s.name).slice(0, 4).join(', ') || 'General Technical skills'}
                       </td>
 
                       <td className="px-6 py-4 text-center font-bold text-[var(--tf-muted)]">

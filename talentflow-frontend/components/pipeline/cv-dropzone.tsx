@@ -90,7 +90,11 @@ export function CVDropzone() {
                     </div>
                   )}
                   {f.status === 'done' && <CheckCircle2 className="w-5 h-5 text-green-500" />}
-                  {f.status === 'error' && <AlertCircle className="w-5 h-5 text-red-500" title={f.error} />}
+                  {f.status === 'error' && (
+                    <span title={f.error}>
+                      <AlertCircle className="w-5 h-5 text-red-500" />
+                    </span>
+                  )}
                   <button
                     onClick={(e) => {
                       e.stopPropagation();

@@ -1,6 +1,7 @@
 import logging
 import uuid
 from typing import Optional
+import pathlib
 
 import os
 from aiobotocore.session import get_session
@@ -9,6 +10,10 @@ from botocore.exceptions import ClientError
 from app.config import settings
 
 logger = logging.getLogger(__name__)
+
+# Absolute root for mock file storage — works regardless of CWD
+_BACKEND_ROOT = pathlib.Path(__file__).resolve().parent.parent.parent  # talentflow-backend/
+MOCK_STORAGE_ROOT = _BACKEND_ROOT / "_mock_storage"
 
 def _get_s3_client():
     endpoint_url = f"https://{settings.R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
@@ -25,15 +30,23 @@ def _get_s3_client():
 async def download_file_bytes(r2_key: str) -> Optional[bytes]:
     """
     Downloads file from R2 via presigned URL or directly via S3 client.
-    Placeholder for actual R2 integration.
+    In dev mode, checks the mock storage directory first.
     """
     logger.info(f"Downloading {r2_key} from storage...")
-    
-    if os.path.exists(r2_key):
-        logger.info(f"Reading local file: {r2_key}")
+
+    # 1. Check absolute mock storage path first (dev mode)
+    mock_path = MOCK_STORAGE_ROOT / r2_key
+    if mock_path.exists():
+        logger.info(f"Reading mock-stored file: {mock_path}")
+        return mock_path.read_bytes()
+
+    # 2. Check if r2_key is itself an absolute path that exists
+    if os.path.isabs(r2_key) and os.path.exists(r2_key):
+        logger.info(f"Reading absolute file: {r2_key}")
         with open(r2_key, "rb") as f:
             return f.read()
 
+    # 3. Try R2/S3
     try:
         async with _get_s3_client() as client:
             response = await client.get_object(
@@ -52,6 +65,12 @@ async def download_file_bytes(r2_key: str) -> Optional[bytes]:
 async def generate_presigned_upload_url(filename: str, content_type: str, size_bytes: int):
     r2_key = f"raw/{uuid.uuid4().hex}_{filename}"
 
+    if settings.ENVIRONMENT == "development" or settings.R2_ACCESS_KEY_ID == "xxx":
+        # Use absolute mock storage path so Celery workers can also find the file
+        import urllib.parse
+        mock_url = f"http://localhost:8000/api/v1/pipeline/mock-upload?key={urllib.parse.quote(r2_key, safe='')}"
+        return {"filename": filename, "upload_url": mock_url, "r2_key": r2_key}
+
     async with _get_s3_client() as client:
         upload_url = client.generate_presigned_url(
             "put_object",
@@ -65,6 +84,9 @@ async def generate_presigned_upload_url(filename: str, content_type: str, size_b
     return {"filename": filename, "upload_url": upload_url, "r2_key": r2_key}
 
 async def generate_presigned_download_url(r2_key: str):
+    if settings.ENVIRONMENT == "development" or settings.R2_ACCESS_KEY_ID == "xxx":
+        return f"http://localhost:8000/api/v1/pipeline/mock-download?key={r2_key}"
+
     async with _get_s3_client() as client:
         return client.generate_presigned_url(
             "get_object",

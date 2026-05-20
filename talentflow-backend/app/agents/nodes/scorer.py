@@ -5,7 +5,7 @@ from app.agents.state import PipelineState
 from app.agents.prompts import SCORING_SYSTEM_PROMPT
 from app.core.circuit_breaker import call_llm_with_fallback
 from app.schemas.candidate import ScoringResult
-from app.core.database import async_session
+from app.core.database import get_worker_session_factory
 from app.models.job import Job
 from sqlalchemy import select
 
@@ -27,7 +27,7 @@ class ScorerNode:
         return clean_profile
 
     async def _get_job_context(self, job_id: str) -> tuple[Dict, Dict]:
-        async with async_session() as session:
+        async with get_worker_session_factory()() as session:
             result = await session.execute(
                 select(Job.requirements, Job.scoring_rubric).where(Job.id == job_id)
             )
@@ -156,8 +156,14 @@ class ScorerNode:
             }
             
         except Exception as e:
-            logger.error(f"ScorerNode failed: {e}")
+            logger.warning(f"ScorerNode LLM failed, falling back to heuristics: {e}")
+            from app.utils.heuristic_fallback import heuristic_score
+            
+            semantic_score = state.get("semantic_score", 0.0)
+            result = heuristic_score(clean_profile, semantic_score)
+            
             return {
-                "processing_status": "scoring_error",
-                "pipeline_error": f"Scoring failed: {str(e)}"
+                "score_breakdown": result["score_breakdown"],
+                "llm_score": result["llm_score"],
+                "total_score": result["total_score"]
             }

@@ -33,6 +33,7 @@ export default function RootLayout({
       <html
         lang="en"
         className={`${spaceGrotesk.variable} ${ibmPlexMono.variable}`}
+        suppressHydrationWarning
       >
         <body className="antialiased min-h-screen bg-[var(--tf-bg)] text-[var(--tf-ink)] font-sans">
           <ApiClientProvider>
