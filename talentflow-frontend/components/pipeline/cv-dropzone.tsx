@@ -47,14 +47,14 @@ export function CVDropzone() {
         onDragLeave={onDragLeave}
         onDrop={onDrop}
         className={cn(
-          "border-2 border-dashed rounded-xl p-10 flex flex-col items-center justify-center transition-colors text-center cursor-pointer",
-          isDragging ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400 bg-white"
+          "border-2 border-dashed rounded-2xl p-10 flex flex-col items-center justify-center transition-colors text-center cursor-pointer bg-white/80",
+          isDragging ? "border-[var(--tf-accent)] bg-emerald-50" : "border-[var(--tf-border)] hover:border-[var(--tf-accent-3)]"
         )}
         onClick={() => document.getElementById('file-upload')?.click()}
       >
-        <UploadCloud className="w-12 h-12 text-gray-400 mb-4" />
-        <h3 className="text-lg font-semibold text-gray-900">Drag & drop your CVs here</h3>
-        <p className="text-sm text-gray-500 mt-1">Supports PDF, DOCX up to 10MB</p>
+        <UploadCloud className="w-12 h-12 text-[var(--tf-muted)] mb-4" />
+        <h3 className="text-lg font-semibold text-[var(--tf-ink)]">Drag & drop candidate CVs</h3>
+        <p className="text-sm text-[var(--tf-muted)] mt-1">Supports PDF and DOCX up to 10MB</p>
         <input
           id="file-upload"
           type="file"
@@ -63,40 +63,44 @@ export function CVDropzone() {
           className="hidden"
           onChange={onFileInput}
         />
-        <button className="mt-6 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors">
+        <button className="mt-6 px-4 py-2 bg-[var(--tf-accent)] text-white rounded-lg font-medium hover:bg-emerald-700 transition-colors">
           Browse Files
         </button>
       </div>
 
       {stagedFiles.length > 0 && (
-        <div className="bg-white border rounded-xl overflow-hidden shadow-sm">
-          <div className="px-4 py-3 border-b bg-gray-50 flex justify-between items-center">
-            <h4 className="font-medium text-gray-700">Staged Files ({stagedFiles.length})</h4>
+        <div className="bg-white/90 border border-[var(--tf-border)] rounded-xl overflow-hidden shadow-sm">
+          <div className="px-4 py-3 border-b border-[var(--tf-border)] bg-white/70 flex justify-between items-center">
+            <h4 className="font-medium text-[var(--tf-ink)]">Staged Files ({stagedFiles.length})</h4>
           </div>
           <ul className="divide-y max-h-60 overflow-y-auto">
             {stagedFiles.map((f) => (
-              <li key={f.id} className="p-3 flex items-center justify-between hover:bg-gray-50">
+              <li key={f.id} className="p-3 flex items-center justify-between hover:bg-[var(--tf-surface-2)]">
                 <div className="flex items-center space-x-3 overflow-hidden">
-                  <File className="w-5 h-5 text-gray-400 flex-shrink-0" />
-                  <span className="text-sm font-medium text-gray-700 truncate">{f.file.name}</span>
-                  <span className="text-xs text-gray-400 flex-shrink-0">
+                  <File className="w-5 h-5 text-[var(--tf-muted)] flex-shrink-0" />
+                  <span className="text-sm font-medium text-[var(--tf-ink)] truncate">{f.file.name}</span>
+                  <span className="text-xs text-[var(--tf-muted)] flex-shrink-0">
                     {(f.file.size / 1024 / 1024).toFixed(2)} MB
                   </span>
                 </div>
                 <div className="flex items-center space-x-3 pl-2">
                   {f.status === 'uploading' && (
                     <div className="w-24 bg-gray-200 rounded-full h-2">
-                      <div className="bg-blue-600 h-2 rounded-full" style={{ width: `${f.progress}%` }}></div>
+                      <div className="bg-[var(--tf-accent)] h-2 rounded-full" style={{ width: `${f.progress}%` }}></div>
                     </div>
                   )}
                   {f.status === 'done' && <CheckCircle2 className="w-5 h-5 text-green-500" />}
-                  {f.status === 'error' && <AlertCircle className="w-5 h-5 text-red-500" title={f.error} />}
+                  {f.status === 'error' && (
+                    <span title={f.error}>
+                      <AlertCircle className="w-5 h-5 text-red-500" />
+                    </span>
+                  )}
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       removeFile(f.id)
                     }}
-                    className="p-1 rounded-md text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                    className="p-1 rounded-md text-[var(--tf-muted)] hover:text-red-500 hover:bg-red-50 transition-colors"
                   >
                     <X className="w-4 h-4" />
                   </button>

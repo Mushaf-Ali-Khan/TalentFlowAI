@@ -45,10 +45,24 @@ def parse_pdf_pymupdf(file_bytes: bytes) -> Tuple[Optional[str], float]:
 
 def parse_pdf_ocr(file_bytes: bytes) -> Tuple[Optional[str], float]:
     """Strategy 3: OCR fallback"""
-    # Placeholder for actual OCR implementation which requires tesseract installed on OS
-    # For now, it returns None to simulate failure or lack of OCR support
-    logger.warning("OCR fallback invoked but not fully implemented.")
-    return None, 0.0
+    try:
+        import pytesseract
+        from pdf2image import convert_from_bytes
+    except Exception as e:
+        logger.warning(f"OCR dependencies missing: {e}")
+        return None, 0.0
+
+    try:
+        images = convert_from_bytes(file_bytes)
+        text_parts = [pytesseract.image_to_string(img) for img in images]
+        text = "\n".join(text_parts).strip()
+        if not text:
+            return None, 0.0
+        confidence = 0.6 if len(text) > 200 else 0.3
+        return text, confidence
+    except Exception as e:
+        logger.error(f"OCR failed: {e}")
+        return None, 0.0
 
 def parse_docx(file_bytes: bytes) -> Tuple[Optional[str], float]:
     """Strategy for DOCX files"""

@@ -1,13 +1,15 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.repositories.batch_repo import batch_repo
+from app.repositories.candidate_repo import candidate_repo
 from app.models.batch import Batch
 from app.workers.cv_tasks import process_cv_batch
+import hashlib
 import logging
 
 logger = logging.getLogger(__name__)
 
 class PipelineService:
-    async def submit_batch(self, db: AsyncSession, org_id: str, job_id: str, user_id: str, r2_keys: list, idempotency_key: str = None) -> Batch:
+    async def submit_batch(self, db: AsyncSession, org_id: str, job_id: str, user_id: str, files: list, idempotency_key: str = None) -> Batch:
         if idempotency_key:
             existing_batch = await batch_repo.get_by_idempotency_key(db, idempotency_key)
             if existing_batch:
@@ -20,16 +22,35 @@ class PipelineService:
             "submitted_by": user_id,
             "idempotency_key": idempotency_key,
             "status": "queued",
-            "total_cvs": len(r2_keys),
+            "total_cvs": len(files),
             "processed_cvs": 0,
             "failed_cvs": 0
         }
         batch = await batch_repo.create(db, batch_data)
-        
-        # Here we would also insert Candidate records for each r2_key
-        # For simplicity, we assume candidate_repo handles this or we do it inline
-        
-        # Trigger Celery task
+
+        for item in files:
+            r2_key = item.get("r2_key")
+            filename = item.get("filename") or r2_key
+            size_bytes = int(item.get("size_bytes") or 0)
+
+            hash_input = f"{r2_key}|{filename}|{size_bytes}".encode("utf-8")
+            content_hash = hashlib.sha256(hash_input).hexdigest()
+
+            candidate_data = {
+                "org_id": org_id,
+                "job_id": job_id,
+                "batch_id": batch.id,
+                "r2_key": r2_key,
+                "original_filename": filename,
+                "file_size_bytes": size_bytes,
+                "content_hash": content_hash,
+                "processing_status": "pending",
+            }
+            await candidate_repo.create(db, candidate_data)
+
+        await db.commit()
+
+        # Trigger Celery task after data is persisted
         process_cv_batch.delay(str(batch.id))
         
         return batch

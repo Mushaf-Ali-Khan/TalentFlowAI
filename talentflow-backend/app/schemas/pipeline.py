@@ -13,9 +13,16 @@ class UploadUrlResponseItem(BaseModel):
     upload_url: str
     r2_key: str
 
+class BatchFileItem(BaseModel):
+    r2_key: str
+    filename: str
+    size_bytes: int
+    content_type: str
+
 class BatchSubmitRequest(BaseModel):
     job_id: UUID
-    r2_keys: List[str]
+    r2_keys: Optional[List[str]] = None
+    files: Optional[List[BatchFileItem]] = None
     idempotency_key: Optional[str] = None
 
 class BatchStatusResponse(BaseModel):

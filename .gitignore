@@ -62,3 +62,13 @@ next-env.d.ts
 *.sln
 *.sw?
 Thumbs.db
+
+# TalentFlow AI local storage & mock files
+talentflow-backend/_mock_storage/
+talentflow-backend/raw/
+talentflow-backend/temp/
+talentflow-backend/*.docx
+talentflow-backend/*.pdf
+*.docx
+*.pdf
+

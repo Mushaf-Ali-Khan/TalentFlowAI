@@ -4,6 +4,10 @@ import math
 from typing import List
 from app.agents.state import PipelineState
 from app.config import settings
+from app.core.database import get_worker_session_factory
+from app.core.redis import get_redis
+from app.models.job import Job
+from sqlalchemy import select
 
 logger = logging.getLogger(__name__)
 
@@ -23,17 +27,57 @@ class MatcherNode:
     """
     
     def __init__(self):
-        # We would inject redis client here, using a placeholder for now
         pass
         
+    async def _get_cached_embedding(self, cache_key: str) -> List[float]:
+        redis = await get_redis()
+        cached = await redis.get(cache_key)
+        if not cached:
+            return []
+        try:
+            return json.loads(cached)
+        except Exception as e:
+            logger.warning(f"Invalid cached embedding for {cache_key}: {e}")
+            return []
+
     async def _get_job_embedding(self, job_id: str, model_ver: str) -> List[float]:
-        # Placeholder for Redis cache hit and DB fallback
-        # redis_key = f"jd_embedding:{job_id}:{model_ver}"
         logger.info(f"Fetching job embedding for job {job_id}")
-        # In reality: await redis.get(redis_key), if miss: fetch from DB, cache and return
-        
-        # We return a dummy vector for testing
-        return [0.1] * 1024
+        cache_key = f"job_embedding:{job_id}:{model_ver}"
+        cached = await self._get_cached_embedding(cache_key)
+        if cached:
+            return cached
+
+        async with get_worker_session_factory()() as session:
+            result = await session.execute(
+                select(Job.embedding, Job.embedding_model_ver).where(Job.id == job_id)
+            )
+            row = result.first()
+
+        if not row:
+            return []
+
+        embedding, stored_ver = row
+        if stored_ver and model_ver and stored_ver != model_ver:
+            logger.warning(
+                f"Embedding model mismatch for job {job_id}: {stored_ver} != {model_ver}"
+            )
+
+        if embedding is None:
+            return []
+
+        if isinstance(embedding, str):
+            try:
+                embedding = json.loads(embedding)
+            except Exception:
+                return []
+
+        embedding_list = [float(v) for v in embedding]
+        try:
+            redis = await get_redis()
+            await redis.setex(cache_key, settings.JOB_EMBEDDING_CACHE_TTL_SECONDS, json.dumps(embedding_list))
+        except Exception as e:
+            logger.warning(f"Failed to cache job embedding for {job_id}: {e}")
+        return embedding_list
 
     async def __call__(self, state: PipelineState) -> dict:
         logger.info(f"MatcherNode running for candidate {state.get('candidate_id')}")

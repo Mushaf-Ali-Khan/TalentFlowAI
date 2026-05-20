@@ -1,17 +1,21 @@
 import type { Metadata } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
+import { Space_Grotesk, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 
+import { ClerkProvider } from "@clerk/nextjs";
 import { QueryProvider } from "@/lib/providers/query-provider";
+import { ApiClientProvider } from "@/lib/providers/api-client-provider";
+import { ToastProvider } from "@/lib/providers/toast-provider";
 
-const inter = Inter({
+const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
-  variable: "--font-inter",
+  variable: "--font-space-grotesk",
 });
 
-const jetbrainsMono = JetBrains_Mono({
+const ibmPlexMono = IBM_Plex_Mono({
   subsets: ["latin"],
-  variable: "--font-jetbrains-mono",
+  weight: ["400", "600"],
+  variable: "--font-ibm-plex-mono",
 });
 
 export const metadata: Metadata = {
@@ -25,15 +29,22 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="en"
-      className={`${inter.variable} ${jetbrainsMono.variable}`}
-    >
-      <body className="antialiased min-h-screen bg-gray-50 text-gray-900 font-sans">
-        <QueryProvider>
-          {children}
-        </QueryProvider>
-      </body>
-    </html>
+    <ClerkProvider>
+      <html
+        lang="en"
+        className={`${spaceGrotesk.variable} ${ibmPlexMono.variable}`}
+        suppressHydrationWarning
+      >
+        <body className="antialiased min-h-screen bg-[var(--tf-bg)] text-[var(--tf-ink)] font-sans">
+          <ApiClientProvider>
+            <ToastProvider>
+              <QueryProvider>
+                {children}
+              </QueryProvider>
+            </ToastProvider>
+          </ApiClientProvider>
+        </body>
+      </html>
+    </ClerkProvider>
   );
 }

@@ -21,8 +21,8 @@ class BiasAuditNode:
     async def __call__(self, state: PipelineState) -> dict:
         logger.info(f"BiasAuditNode running for candidate {state.get('candidate_id')}")
         
-        raw_text = state.get("raw_text", "")
-        profile = state.get("profile", {})
+        raw_text = state.get("raw_text") or ""
+        profile = state.get("profile") or {}
         
         result = BiasAuditResult()
         

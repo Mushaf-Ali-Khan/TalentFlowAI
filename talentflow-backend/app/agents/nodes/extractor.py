@@ -44,7 +44,10 @@ class ExtractorNode:
                 "end_date": exp.end_date
             })
             
-        profile.total_years_experience = calculate_total_experience_years(exp_list)
+        if exp_list:
+            profile.total_years_experience = calculate_total_experience_years(exp_list)
+        elif profile.total_years_experience is None:
+            profile.total_years_experience = 0.0
         
         # Simple seniority heuristic
         years = profile.total_years_experience
@@ -136,9 +139,16 @@ class ExtractorNode:
             }
             
         except Exception as e:
-            logger.error(f"ExtractorNode failed: {e}")
+            logger.warning(f"ExtractorNode LLM failed, falling back to heuristics: {e}")
+            from app.utils.heuristic_fallback import heuristic_extract
+            
+            parsed_dict = heuristic_extract(raw_text)
+            profile = CandidateProfile(**parsed_dict)
+            profile = self._normalize_profile(profile)
+            profile.extraction_confidence = state.get("extraction_confidence", 0.0)
+            
             return {
-                "profile": None,
-                "needs_manual_review": True,
-                "extraction_error": str(e)
+                "profile": profile.model_dump(),
+                "needs_manual_review": state.get("needs_manual_review", False),
+                "extraction_error": None
             }

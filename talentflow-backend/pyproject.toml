@@ -20,14 +20,20 @@ dependencies = [
     "alembic==1.14.0",
     "pdfplumber==0.11.4",
     "pymupdf==1.25.1",
+    "pytesseract>=0.3.10",
+    "pdf2image>=1.17.0",
     "python-docx==1.1.2",
     "sentence-transformers==3.3.1",
+    "tiktoken>=0.6.0",
     "circuitbreaker==2.0.0",
     "python-magic==0.4.27",
+    "email-validator>=2.1.0",
+    "aiobotocore>=2.15.0",
     "clerk-backend-api==1.7.0",
     "logfire==2.7.0",
     "sentry-sdk==2.19.2",
     "python-multipart>=0.0.9",
+    "fpdf2>=2.7.9",
     "python-magic-bin>=0.4.14; sys_platform == 'win32'", # for Windows
 ]
 

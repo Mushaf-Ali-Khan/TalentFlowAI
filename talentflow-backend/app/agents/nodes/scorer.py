@@ -5,6 +5,9 @@ from app.agents.state import PipelineState
 from app.agents.prompts import SCORING_SYSTEM_PROMPT
 from app.core.circuit_breaker import call_llm_with_fallback
 from app.schemas.candidate import ScoringResult
+from app.core.database import get_worker_session_factory
+from app.models.job import Job
+from sqlalchemy import select
 
 logger = logging.getLogger(__name__)
 
@@ -24,16 +27,22 @@ class ScorerNode:
         return clean_profile
 
     async def _get_job_context(self, job_id: str) -> tuple[Dict, Dict]:
-        # Placeholder for DB fetch
-        # return requirements, scoring_rubric
-        requirements = {"required_skills": ["Python", "FastAPI"], "min_years": 3}
-        scoring_rubric = {
-            "skills_match": 4000, 
-            "experience_relevance": 3000, 
-            "education_fit": 1500, 
-            "growth_trajectory": 1500
-        }
-        return requirements, scoring_rubric
+        async with get_worker_session_factory()() as session:
+            result = await session.execute(
+                select(Job.requirements, Job.scoring_rubric).where(Job.id == job_id)
+            )
+            row = result.first()
+
+        if not row:
+            return {}, {
+                "skills_match": 4000,
+                "experience_relevance": 3000,
+                "education_fit": 1500,
+                "growth_trajectory": 1500,
+            }
+
+        requirements, scoring_rubric = row
+        return requirements or {}, scoring_rubric or {}
 
     async def __call__(self, state: PipelineState) -> dict:
         logger.info(f"ScorerNode running for candidate {state.get('candidate_id')}")
@@ -50,6 +59,13 @@ class ScorerNode:
         
         try:
             requirements, scoring_rubric = await self._get_job_context(job_id)
+            if not scoring_rubric:
+                scoring_rubric = {
+                    "skills_match": 4000,
+                    "experience_relevance": 3000,
+                    "education_fit": 1500,
+                    "growth_trajectory": 1500,
+                }
             
             system_prompt = SCORING_SYSTEM_PROMPT.format(rubric_description=json.dumps(scoring_rubric))
             
@@ -97,14 +113,20 @@ class ScorerNode:
 
             parsed_dict = json.loads(json_str)
             
-            # Add weights to parsed dict before validation if missing
+            # Ensure all rubric dimensions exist and include weights
             for dim, weight in scoring_rubric.items():
-                if dim in parsed_dict and isinstance(parsed_dict[dim], dict):
+                if dim not in parsed_dict or not isinstance(parsed_dict[dim], dict):
+                    parsed_dict[dim] = {
+                        "score": 0,
+                        "justification": "No score provided.",
+                        "weight_bps": weight,
+                    }
+                else:
                     parsed_dict[dim]["weight_bps"] = weight
 
             # Calculate LLM score using weights
             llm_score = 0.0
-            total_weight = sum(scoring_rubric.values())
+            total_weight = sum(scoring_rubric.values()) or 1
             for dim, weight in scoring_rubric.items():
                 if dim in parsed_dict:
                     # Score is 0-10, normalize to 0-100
@@ -134,8 +156,14 @@ class ScorerNode:
             }
             
         except Exception as e:
-            logger.error(f"ScorerNode failed: {e}")
+            logger.warning(f"ScorerNode LLM failed, falling back to heuristics: {e}")
+            from app.utils.heuristic_fallback import heuristic_score
+            
+            semantic_score = state.get("semantic_score", 0.0)
+            result = heuristic_score(clean_profile, semantic_score)
+            
             return {
-                "processing_status": "scoring_error",
-                "pipeline_error": f"Scoring failed: {str(e)}"
+                "score_breakdown": result["score_breakdown"],
+                "llm_score": result["llm_score"],
+                "total_score": result["total_score"]
             }

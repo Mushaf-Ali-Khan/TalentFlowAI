@@ -4,13 +4,11 @@ from pydantic import BaseModel
 from typing import Optional
 
 from app.schemas.common import SuccessResponse
+from app.schemas.candidate import CandidateResponse
 from app.services.candidate_service import candidate_service
+from app.services.user_service import user_service
 from app.core.auth import get_current_user, ClerkUser
-
-async def get_db():
-    from tests.conftest import async_session
-    async with async_session() as session:
-        yield session
+from app.core.database import get_db
 
 router = APIRouter()
 
@@ -18,7 +16,7 @@ class StatusUpdateSchema(BaseModel):
     status: str
     note: Optional[str] = None
 
-@router.get("/{candidate_id}")
+@router.get("/{candidate_id}", response_model=SuccessResponse[CandidateResponse])
 async def get_candidate(
     candidate_id: str,
     request: Request,
@@ -30,7 +28,7 @@ async def get_candidate(
         raise HTTPException(status_code=404, detail="Candidate not found")
     return {"success": True, "data": candidate, "request_id": request.state.request_id}
 
-@router.patch("/{candidate_id}/status")
+@router.patch("/{candidate_id}/status", response_model=SuccessResponse[CandidateResponse])
 async def update_status(
     candidate_id: str,
     body: StatusUpdateSchema,
@@ -38,12 +36,13 @@ async def update_status(
     db: AsyncSession = Depends(get_db),
     current_user: ClerkUser = Depends(get_current_user)
 ):
+    db_user = await user_service.get_or_create(db, current_user)
     candidate = await candidate_service.update_status(
         db=db,
         candidate_id=candidate_id,
         status=body.status,
         note=body.note or "",
-        user_id=current_user.clerk_user_id
+        user_id=str(db_user.id)
     )
     if not candidate:
         raise HTTPException(status_code=404, detail="Candidate not found")

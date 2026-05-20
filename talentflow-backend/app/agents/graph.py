@@ -11,7 +11,9 @@ from app.agents.nodes.bias_audit import BiasAuditNode
 from app.agents.nodes.persist import PersistNode
 
 def should_score_or_reject(state: PipelineState) -> str:
-    if state.get('auto_rejected', False) or state.get('semantic_score', 1.0) < 0.20:
+    # Only auto-reject if we actually computed a real semantic score AND it was below threshold.
+    # semantic_score=0.0 means matching was skipped (no job embedding), so always score.
+    if state.get('auto_rejected', False) and state.get('semantic_score', 0.0) > 0:
         return 'auto_reject'
     return 'score'
 

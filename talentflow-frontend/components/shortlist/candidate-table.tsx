@@ -17,67 +17,71 @@ export interface CandidateRow {
 
 export function CandidateTable({ candidates, onRowClick }: { candidates: CandidateRow[], onRowClick: (id: string) => void }) {
   return (
-    <div className="overflow-x-auto rounded-xl border border-gray-200 shadow-sm bg-white">
-      <table className="min-w-full divide-y divide-gray-200">
-        <thead className="bg-gray-50">
+    <div className="overflow-x-auto rounded-xl border border-[var(--tf-border)] shadow-sm bg-white">
+      <table className="min-w-full divide-y divide-[var(--tf-border)]">
+        <thead className="bg-[var(--tf-surface-2)]">
           <tr>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Candidate</th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Overall Score</th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Skills</th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Experience</th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-[var(--tf-muted)] uppercase tracking-wider">Candidate</th>
+            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-[var(--tf-muted)] uppercase tracking-wider">Overall Score</th>
+            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-[var(--tf-muted)] uppercase tracking-wider">Skills</th>
+            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-[var(--tf-muted)] uppercase tracking-wider">Experience</th>
+            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-[var(--tf-muted)] uppercase tracking-wider">Status</th>
             <th scope="col" className="relative px-6 py-3"><span className="sr-only">Actions</span></th>
           </tr>
         </thead>
-        <tbody className="bg-white divide-y divide-gray-200">
+        <tbody className="bg-white divide-y divide-[var(--tf-border)]">
           {candidates.map((person) => (
-            <tr key={person.id} onClick={() => onRowClick(person.id)} className="hover:bg-gray-50 cursor-pointer transition-colors">
+            <tr key={person.id} onClick={() => onRowClick(person.id)} className="hover:bg-emerald-50/40 cursor-pointer transition-colors">
               <td className="px-6 py-4 whitespace-nowrap">
                 <div className="flex items-center">
                   <div className="h-10 w-10 flex-shrink-0">
-                    <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center text-blue-700 font-semibold">
+                    <div className="h-10 w-10 rounded-full bg-emerald-100 border border-emerald-200 flex items-center justify-center text-emerald-700 font-semibold">
                       {person.name.charAt(0)}
                     </div>
                   </div>
                   <div className="ml-4">
-                    <div className="text-sm font-medium text-gray-900 flex items-center gap-2">
+                    <div className="text-sm font-medium text-[var(--tf-ink)] flex items-center gap-2">
                       {person.name}
-                      {person.needs_manual_review && <ShieldAlert className="w-4 h-4 text-orange-500" title="Needs Manual Review" />}
+                      {person.needs_manual_review && (
+                        <span title="Needs Manual Review">
+                          <ShieldAlert className="w-4 h-4 text-orange-500" />
+                        </span>
+                      )}
                     </div>
-                    <div className="text-sm text-gray-500">{person.role}</div>
+                    <div className="text-sm text-[var(--tf-muted)]">{person.role}</div>
                   </div>
                 </div>
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
                 <div className="flex items-center">
-                  <div className="text-sm font-semibold text-gray-900">{person.total_score.toFixed(1)} / 100</div>
+                  <div className="text-sm font-semibold text-[var(--tf-ink)]">{person.total_score.toFixed(1)} / 100</div>
                 </div>
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
-                <div className="w-full bg-gray-200 rounded-full h-2 max-w-[100px]">
-                  <div className="bg-indigo-600 h-2 rounded-full" style={{ width: `${person.skills_match * 10}%` }}></div>
+                <div className="w-full bg-[var(--tf-surface-2)] rounded-full h-2 max-w-[100px]">
+                  <div className="bg-[var(--tf-accent)] h-2 rounded-full" style={{ width: `${person.skills_match * 10}%` }}></div>
                 </div>
               </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-[var(--tf-muted)]">
                 {person.experience.toFixed(1)} yrs
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
                 {person.auto_rejected ? (
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-50 text-red-700 border border-red-200">
                     <XCircle className="w-3 h-3 mr-1" /> Auto-Rejected
                   </span>
                 ) : person.status === 'shortlisted' ? (
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
                     <CheckCircle className="w-3 h-3 mr-1" /> Shortlisted
                   </span>
                 ) : (
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-50 text-slate-700 border border-slate-200">
                     New
                   </span>
                 )}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                <button className="text-gray-400 hover:text-gray-600">
+                <button className="text-[var(--tf-muted)] hover:text-[var(--tf-ink)]">
                   <MoreHorizontal className="w-5 h-5" />
                 </button>
               </td>
