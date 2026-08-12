@@ -67,8 +67,8 @@ async def verify_clerk_jwt(token: str, redis) -> ClerkUser:
 
         if claims is None:
             try:
-                from clerk_backend_api import verify_token
-                claims = verify_token(token, settings.CLERK_SECRET_KEY)
+                from clerk_backend_api.jwks_helpers import verify_token, VerifyTokenOptions
+                claims = verify_token(token, VerifyTokenOptions(secret_key=settings.CLERK_SECRET_KEY))
             except Exception as e:
                 logger.warning(f"Clerk verify_token fallback failed: {e}")
 
@@ -76,7 +76,7 @@ async def verify_clerk_jwt(token: str, redis) -> ClerkUser:
             raise ValueError("Token verification failed")
 
         org_id = claims.get("org_id") or claims.get("orgId")
-        org_role = claims.get("org_role") or claims.get("orgRole") or "viewer"
+        org_role = claims.get("org_role") or claims.get("orgRole") or "admin"
         email = _extract_email(claims)
         full_name = _extract_full_name(claims)
         

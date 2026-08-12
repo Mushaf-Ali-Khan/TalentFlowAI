@@ -22,9 +22,12 @@ from app.utils.file_parser import extract_text_from_file
 from app.utils.embeddings import EmbeddingService
 
 # ---------- paths ----------
-JD_PATH = r"C:\Users\Tony_Stark\Professional\Startup\FYP\TalentFlowAI\Senior_Backend_Engineer_Job_Description.txt"
-HIGH_CV_PATH = r"C:\Users\Tony_Stark\Professional\Startup\FYP\TalentFlowAI\Highly_Qualified_Senior_Backend_Engineer_Resume.docx"
-MID_CV_PATH  = r"C:\Users\Tony_Stark\Professional\Startup\FYP\TalentFlowAI\Mid_Level_Backend_Engineer_Resume.pdf"
+import os
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+JD_PATH = os.path.join(BASE_DIR, "Senior_Backend_Engineer_Job_Description.txt")
+HIGH_CV_PATH = os.path.join(BASE_DIR, "Highly_Qualified_Senior_Backend_Engineer_Resume.docx")
+MID_CV_PATH  = os.path.join(BASE_DIR, "Mid_Level_Backend_Engineer_Resume.pdf")
+
 
 
 async def run_pipeline_for_candidate(

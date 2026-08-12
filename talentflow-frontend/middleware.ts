@@ -13,8 +13,7 @@ export default clerkMiddleware(async (auth, req) => {
   }
 
   if (!isPublicRoute(req)) {
-    const authObj: any = await auth();
-    authObj.protect();
+    await auth.protect();
   }
 });
 

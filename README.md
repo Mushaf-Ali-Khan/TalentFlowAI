@@ -10,15 +10,15 @@ Developed as a Final Year Project (FYP) and startup prototype, TalentFlowAI deli
 
 ```mermaid
 graph TD
-    A["Next.js Frontend (Port 3000)"] -->|REST API via Axios| B["FastAPI Backend (Port 8000)"]
-    B -->|JWT Verification| C["Clerk Auth Provider"]
-    B -->|Asynchronous Workloads| D["Celery Queue + Redis Broker"]
-    D -->|LangGraph Pipeline (7 Nodes)| E["AI Screening Agent Graph"]
-    E -->|Primary LLM| F["Anthropic Claude 3.5 Sonnet"]
-    E -->|Fallback LLM| G["Ollama (Qwen2.5:14b / Local fallback)"]
-    E -->|Vector Embeddings| H["BAAI/bge-m3 (via sentence-transformers)"]
-    B -->|Persistence & Search| I["PostgreSQL + pgvector (Port 5432)"]
-    B -->|File Storage| J["Cloudflare R2 (S3-Compatible / Local Mock fallback)"]
+    A[Next.js Frontend] -->|REST API| B(FastAPI Backend)
+    B -->|JWT Auth| C[Clerk Auth Provider]
+    B -->|Async Tasks| D[Celery + Redis]
+    D -->|LangGraph| E{AI Screening Agent}
+    E -->|Primary LLM| F[Claude 3.5 Sonnet]
+    E -->|Fallback LLM| G[Ollama Qwen2.5]
+    E -->|Embeddings| H[BAAI bge-m3]
+    B -->|Vector Search| I[(PostgreSQL + pgvector)]
+    B -->|File Storage| J[(S3 Storage)]
 ```
 
 ---
@@ -26,7 +26,7 @@ graph TD
 ## 2. Core Platform Features
 
 ### 📂 Multi-Format Resume Ingestion
-* **Parser Engine:** Handles standard `PDF` and Word (`DOCX`) files, implementing a multi-stage fallback strategy (pdfplumber $\rightarrow$ PyMuPDF $\rightarrow$ OCR placeholder).
+* **Parser Engine:** Handles standard `PDF` and Word (`DOCX`) files, implementing a multi-stage fallback strategy (pdfplumber → PyMuPDF → OCR placeholder).
 * **Experience Parsing & Deduplication:** Parses chronological employment history, filters overlapping periods using date-range deduplication logic, and robustly handles corrupted character sets (e.g., Unicode artifacts like `\ufffd` or custom page-break dashes).
 
 ### 🤖 Multi-Node AI screening Agent Pipeline (LangGraph)
@@ -40,7 +40,7 @@ The background processing pipeline runs on **Celery** workers executing a 7-node
 7. **PersistNode:** Commits candidate scores, structured profile data, vector embeddings, and audit logs to the database in a single database transaction.
 
 ### ⚡ Real-World Auto-Shortlisting Workflow
-* Automatically transitions processed candidates with a total screening score $\ge$ `AUTO_SHORTLIST_THRESHOLD` (default: **`75.0`**) to a `shortlisted` status.
+* Automatically transitions processed candidates with a total screening score ≥ `AUTO_SHORTLIST_THRESHOLD` (default: **`75.0`**) to a `shortlisted` status.
 * Candidates failing the threshold remain in the pipeline for manual recruiter review.
 
 ### 📅 Recruiter Dashboard & Interview Scheduler
@@ -54,9 +54,9 @@ The background processing pipeline runs on **Celery** workers executing a 7-node
 ## 3. Technology Stack & Dependencies
 
 ### Backend
-* **Runtime:** Python $\ge$ 3.12
+* **Runtime:** Python ≥ 3.12
 * **Web Framework:** FastAPI (0.115.6)
-* **ASGI Server:** Uvicorn ($\ge$ 0.30.0)
+* **ASGI Server:** Uvicorn (≥ 0.30.0)
 * **AI Orchestration:** LangGraph (0.3.21)
 * **LLM APIs:** langchain-anthropic (0.3.10)
 * **Local Fallback:** Ollama (Qwen2.5:14b)
@@ -149,11 +149,15 @@ This launches:
    ```bash
    alembic upgrade head
    ```
-6. Start the FastAPI backend server:
+6. Create the default mock organization (required for local development auth bypass):
+   ```bash
+   python create_default_org.py
+   ```
+7. Start the FastAPI backend server:
    ```bash
    python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
    ```
-7. In a **new terminal tab** (with environment activated), launch the Celery background worker:
+8. In a **new terminal tab** (with environment activated), launch the Celery background worker:
    ```bash
    # Windows (requires thread pool):
    celery -A app.workers.celery_app worker --loglevel=info --pool=threads --concurrency=4
@@ -172,7 +176,7 @@ This launches:
    ```bash
    npm install
    ```
-3. Create your environment variable file `.env`:
+3. Create your environment variable file `.env.local`:
    ```env
    NEXT_PUBLIC_API_URL=http://localhost:8000
    
@@ -180,6 +184,7 @@ This launches:
    NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
    CLERK_SECRET_KEY=sk_test_...
    ```
+   > ⚠️ **Security Note:** Never commit your `.env.local` files to version control. They are ignored by default via `.gitignore`.
 4. Run the Next.js development server:
    ```bash
    npm run dev
